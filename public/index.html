@@ -1,0 +1,991 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard de Atendimento — Agenda Edu</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg:   #06060f;
+      --bg2:  #0d0d1e;
+      --bg3:  #111126;
+      --border: rgba(255,255,255,0.07);
+      --border-hi: rgba(99,102,241,0.5);
+      --primary: #6366f1;
+      --primary-l: #818cf8;
+      --green:  #10b981;
+      --yellow: #f59e0b;
+      --red:    #ef4444;
+      --cyan:   #06b6d4;
+      --pink:   #ec4899;
+      --orange: #f97316;
+      --purple: #8b5cf6;
+      --text:   #f1f5f9;
+      --text2:  #94a3b8;
+      --text3:  #475569;
+      --r: 12px;
+    }
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,-apple-system,sans-serif;min-height:100vh;line-height:1.5;}
+
+    /* ── HEADER ── */
+    header{
+      background:var(--bg2);border-bottom:1px solid var(--border);
+      padding:14px 32px;display:flex;align-items:center;justify-content:space-between;
+      position:sticky;top:0;z-index:100;
+    }
+    .logo{display:flex;align-items:center;gap:10px;}
+    .logo-icon{width:34px;height:34px;background:var(--primary);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;}
+    .logo-text{font-size:16px;font-weight:700;letter-spacing:-0.3px;}
+    .logo-sub{font-size:11px;color:var(--text2);letter-spacing:.5px;}
+    .header-right{display:flex;align-items:center;gap:12px;}
+    .badge-live{display:flex;align-items:center;gap:6px;background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.25);border-radius:20px;padding:5px 12px;font-size:12px;color:var(--green);}
+    .pulse{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 2s infinite;}
+    @keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.5;transform:scale(.8);}}
+    .countdown-text{font-size:12px;color:var(--text3);}
+    .btn-refresh{background:var(--primary);border:none;color:#fff;padding:7px 16px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;font-family:inherit;transition:all .15s;}
+    .btn-refresh:hover{background:var(--primary-l);}
+    .btn-refresh:disabled{opacity:.5;cursor:not-allowed;}
+
+    /* ── MAIN ── */
+    main{padding:24px 32px;max-width:1600px;margin:0 auto;}
+
+    /* ── SECTION TITLE ── */
+    .sec-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+    .sec-title{font-size:14px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:8px;}
+    .sec-sub{font-size:12px;color:var(--text2);}
+
+    /* ── ALERT ── */
+    .alert{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);border-radius:10px;padding:12px 18px;margin-bottom:20px;display:none;align-items:center;gap:8px;font-size:13px;}
+    .alert.show{display:flex;}
+    .sla-alert{display:none;align-items:center;gap:8px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.35);border-radius:10px;padding:11px 18px;margin-bottom:20px;font-size:13px;animation:blink-b 2s infinite;}
+    .sla-alert.show{display:flex;}
+    @keyframes blink-b{0%,100%{border-color:rgba(239,68,68,.35);}50%{border-color:rgba(239,68,68,.8);}}
+
+    /* ── STATUS CHIPS ── */
+    .status-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px;}
+    .status-chip{display:flex;align-items:center;gap:7px;background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:6px 14px;font-size:13px;color:var(--text2);}
+    .status-chip strong{color:var(--text);}
+    .dot{width:8px;height:8px;border-radius:50%;}
+    .dot.waiting{background:var(--yellow);}
+    .dot.in_attendance{background:var(--cyan);}
+    .dot.done{background:var(--green);}
+    .dot.pending{background:var(--purple);}
+
+    /* ── METRICS ── */
+    .metrics-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-bottom:24px;}
+    .metric-card{
+      background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);
+      padding:20px;position:relative;overflow:hidden;transition:border-color .2s,transform .2s;
+    }
+    .metric-card:hover{border-color:var(--border-hi);transform:translateY(-1px);}
+    .metric-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--accent,var(--primary));}
+    .metric-icon{font-size:22px;margin-bottom:10px;}
+    .metric-value{font-size:30px;font-weight:800;line-height:1;color:var(--accent,var(--primary));}
+    .metric-value.sm{font-size:22px;}
+    .metric-label{font-size:11px;color:var(--text2);margin-top:5px;text-transform:uppercase;letter-spacing:.5px;}
+    .metric-sub{font-size:11px;color:var(--text3);margin-top:3px;}
+    .c-wait{--accent:var(--yellow);}
+    .c-att{--accent:var(--cyan);}
+    .c-done{--accent:var(--green);}
+    .c-sla{--accent:var(--red);}
+    .c-qual{--accent:var(--pink);}
+    .c-rate{--accent:var(--yellow);}
+
+    /* ── CHARTS ── */
+    .charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;}
+    @media(max-width:900px){.charts-grid{grid-template-columns:1fr;}}
+    .chart-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:20px;}
+    .chart-card.full{grid-column:1/-1;}
+    .chart-title{font-size:13px;font-weight:600;margin-bottom:14px;color:var(--text);display:flex;align-items:center;gap:7px;}
+    .chart-container{position:relative;height:230px;}
+    .chart-container.tall{height:280px;}
+
+    /* ── RANKING ── */
+    .ranking-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:20px;margin-bottom:24px;}
+    .rk-table{width:100%;border-collapse:collapse;}
+    .rk-table th{text-align:left;font-size:11px;color:var(--text3);padding:8px 10px;border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.5px;font-weight:500;}
+    .rk-table td{padding:11px 10px;border-bottom:1px solid var(--border);font-size:13px;vertical-align:middle;}
+    .rk-table tr:last-child td{border-bottom:none;}
+    .rk-table tr:hover td{background:rgba(99,102,241,.04);}
+    .avatar{width:32px;height:32px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0;}
+    .att-name{font-weight:600;font-size:13px;}
+    .att-sub{font-size:11px;color:var(--text3);}
+    .rk-badge{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:7px;font-weight:700;font-size:13px;}
+    .rk-1{background:rgba(245,158,11,.15);color:#f59e0b;}
+    .rk-2{background:rgba(148,163,184,.15);color:#94a3b8;}
+    .rk-3{background:rgba(180,120,60,.15);color:#b4783c;}
+    .rk-n{background:var(--bg3);color:var(--text3);}
+    .rk-bottom{background:rgba(239,68,68,.1);color:var(--red);}
+    .tag{display:inline-block;padding:2px 8px;border-radius:5px;font-size:11px;font-weight:600;}
+    .t-green{background:rgba(16,185,129,.12);color:#10b981;}
+    .t-cyan{background:rgba(6,182,212,.12);color:#06b6d4;}
+    .t-yellow{background:rgba(245,158,11,.12);color:#f59e0b;}
+    .t-red{background:rgba(239,68,68,.12);color:#ef4444;}
+    .t-gray{background:rgba(71,85,105,.2);color:#64748b;}
+    .t-purple{background:rgba(139,92,246,.12);color:#8b5cf6;}
+    .t-pink{background:rgba(236,72,153,.12);color:#ec4899;}
+    .pbar{height:4px;background:var(--bg3);border-radius:2px;overflow:hidden;width:80px;margin-top:4px;}
+    .pbar-fill{height:100%;border-radius:2px;transition:width .5s ease;}
+    .divider-row td{background:rgba(239,68,68,.04);color:var(--text3);font-size:11px;text-align:center;padding:6px;border-bottom:none;}
+    .rk-expand-btn{background:none;border:1px solid var(--border);border-radius:7px;color:var(--text2);font-size:12px;padding:5px 12px;cursor:pointer;font-family:inherit;transition:all .15s;}
+    .rk-expand-btn:hover{border-color:var(--primary);color:var(--primary);}
+    /* error chips */
+    .err-chip{display:inline-flex;align-items:center;gap:4px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);color:var(--red);border-radius:5px;padding:2px 7px;font-size:11px;font-weight:500;margin:2px;text-decoration:none;}
+    .err-chip:hover{background:rgba(239,68,68,.18);}
+
+    /* ── DEMANDAS ── */
+    .demandas-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:24px;}
+    .demanda-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:16px;display:flex;align-items:center;gap:12px;transition:border-color .2s,transform .2s;}
+    .demanda-card:hover{transform:translateY(-1px);border-color:var(--border-hi);}
+    .dem-icon{width:40px;height:40px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
+    .dem-label{font-size:12px;color:var(--text2);font-weight:500;}
+    .dem-total{font-size:24px;font-weight:800;line-height:1.1;}
+    .dem-bar{height:3px;border-radius:2px;margin-top:6px;transition:width .5s;}
+
+    /* ── SENT PAIS ── */
+    .spais-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:24px;}
+    .sp-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:16px;text-align:center;}
+    .sp-emoji{font-size:28px;margin-bottom:6px;}
+    .sp-label{font-size:11px;color:var(--text2);margin-bottom:4px;}
+    .sp-total{font-size:26px;font-weight:800;}
+    .sp-pct{font-size:11px;color:var(--text3);margin-top:2px;}
+
+    /* ── PLANO DE AÇÃO ── */
+    .plano-section{margin-bottom:24px;display:none;}
+    .plano-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;}
+    .plano-card{background:var(--bg2);border:1px solid var(--border);border-left:3px solid var(--yellow);border-radius:var(--r);padding:20px;transition:border-color .2s,transform .2s;}
+    .plano-card:hover{transform:translateY(-1px);}
+    .plano-card.neg{border-left-color:var(--red);}
+    .plano-card.misto{border-left-color:var(--yellow);}
+    .plano-topico-row{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+    .plano-icon{width:38px;height:38px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0;}
+    .plano-nm{font-size:14px;font-weight:700;}
+    .plano-cnt{font-size:11px;color:var(--text3);}
+    .plano-badge-neg{display:inline-flex;align-items:center;padding:2px 9px;border-radius:5px;font-size:11px;font-weight:600;background:rgba(239,68,68,.12);color:var(--red);margin-left:auto;}
+    .plano-causa{background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.15);border-radius:8px;padding:12px;margin-bottom:14px;}
+    .plano-causa-lbl{font-size:10px;font-weight:700;color:var(--yellow);text-transform:uppercase;letter-spacing:.6px;margin-bottom:5px;}
+    .plano-causa-txt{font-size:12px;color:var(--text2);line-height:1.6;}
+    .plano-acoes-lbl{font-size:10px;font-weight:700;color:var(--primary-l);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px;}
+    .plano-item{display:flex;align-items:flex-start;gap:8px;margin-bottom:7px;}
+    .plano-num{width:20px;height:20px;border-radius:5px;background:rgba(99,102,241,.15);color:var(--primary-l);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;}
+    .plano-txt{font-size:12px;color:var(--text2);line-height:1.5;}
+    .plano-frases{margin-top:12px;padding-top:12px;border-top:1px solid var(--border);}
+    .plano-frases-lbl{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;}
+    .plano-frase{font-size:11px;color:var(--text3);background:var(--bg3);border-radius:5px;padding:6px 8px;margin-bottom:4px;font-style:italic;line-height:1.4;}
+
+    /* ── ALERTA 2H SEM RESPOSTA ── */
+    .longwait-banner{
+      display:none;position:fixed;bottom:24px;right:24px;z-index:500;
+      width:380px;max-height:60vh;overflow-y:auto;
+      background:#0d0d1e;border:2px solid var(--red);border-radius:14px;
+      box-shadow:0 0 0 4px rgba(239,68,68,.15), 0 8px 32px rgba(0,0,0,.6);
+      animation:lw-border-pulse 2s infinite;
+    }
+    .longwait-banner.show{display:block;}
+    @keyframes lw-border-pulse{0%,100%{box-shadow:0 0 0 4px rgba(239,68,68,.15),0 8px 32px rgba(0,0,0,.6);}50%{box-shadow:0 0 0 8px rgba(239,68,68,.3),0 8px 40px rgba(0,0,0,.7);}}
+    .lw-header{
+      background:rgba(239,68,68,.12);border-bottom:1px solid rgba(239,68,68,.25);
+      padding:14px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;
+      border-radius:12px 12px 0 0;
+    }
+    .lw-icon{font-size:20px;animation:lw-shake 1.5s infinite;}
+    @keyframes lw-shake{0%,100%{transform:rotate(0);}10%,30%{transform:rotate(-8deg);}20%,40%{transform:rotate(8deg);}50%{transform:rotate(0);}}
+    .lw-title{font-size:14px;font-weight:700;color:var(--red);flex:1;}
+    .lw-count{background:var(--red);color:#fff;border-radius:20px;padding:2px 9px;font-size:12px;font-weight:700;}
+    .lw-close{background:none;border:none;color:var(--text3);font-size:18px;cursor:pointer;padding:0 4px;line-height:1;}
+    .lw-close:hover{color:var(--text);}
+    .lw-body{padding:12px;}
+    .lw-item{
+      background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.18);border-radius:9px;
+      padding:12px;margin-bottom:8px;transition:background .2s;
+    }
+    .lw-item:last-child{margin-bottom:0;}
+    .lw-item:hover{background:rgba(239,68,68,.1);}
+    .lw-item-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
+    .lw-time{font-size:18px;font-weight:800;color:var(--red);line-height:1;}
+    .lw-time-label{font-size:10px;color:var(--text3);margin-top:2px;}
+    .lw-status-badge{font-size:10px;font-weight:600;padding:2px 8px;border-radius:5px;}
+    .lw-status-waiting{background:rgba(245,158,11,.12);color:#f59e0b;}
+    .lw-status-in_attendance{background:rgba(6,182,212,.12);color:#06b6d4;}
+    .lw-channel{font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .lw-attendant{font-size:11px;color:var(--text3);margin-top:3px;}
+    .lw-footer{padding:10px 16px;border-top:1px solid var(--border);text-align:center;}
+    .lw-reopen-btn{background:none;border:none;color:var(--text3);font-size:12px;cursor:pointer;font-family:inherit;}
+    .lw-reopen-btn:hover{color:var(--primary);}
+    .lw-fab{
+      display:none;position:fixed;bottom:24px;right:24px;z-index:499;
+      background:var(--red);color:#fff;border:none;border-radius:50%;
+      width:52px;height:52px;font-size:22px;cursor:pointer;
+      box-shadow:0 4px 20px rgba(239,68,68,.5);animation:lw-border-pulse 2s infinite;
+      align-items:center;justify-content:center;
+    }
+    .lw-fab.show{display:flex;}
+    .lw-fab-badge{
+      position:absolute;top:-4px;right:-4px;background:#fff;color:var(--red);
+      border-radius:50%;width:20px;height:20px;font-size:11px;font-weight:800;
+      display:flex;align-items:center;justify-content:center;
+    }
+
+    /* ── LOADING ── */
+    .loading-overlay{position:fixed;inset:0;background:rgba(6,6,15,.9);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:200;gap:14px;}
+    .spinner{width:44px;height:44px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .8s linear infinite;}
+    @keyframes spin{to{transform:rotate(360deg);}}
+    .loading-text{font-size:15px;color:var(--text2);}
+
+    /* ── NEGATIVOS DRILL-DOWN ── */
+    .neg-card{background:var(--bg2);border:1px solid rgba(239,68,68,.2);border-left:3px solid var(--red);border-radius:var(--r);padding:18px;}
+    .neg-card-header{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+    .neg-topic-icon{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+    .neg-topic-name{font-size:14px;font-weight:700;}
+    .neg-topic-cnt{font-size:11px;color:var(--text3);}
+    .neg-badge{background:rgba(239,68,68,.15);color:var(--red);border-radius:5px;padding:2px 9px;font-size:12px;font-weight:700;margin-left:auto;}
+    .neg-keywords-lbl{font-size:10px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;}
+    .neg-keyword{display:inline-block;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.15);color:#f87171;border-radius:4px;padding:2px 7px;font-size:11px;margin:2px;}
+    .neg-msg-lbl{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin:10px 0 6px;}
+    .neg-msg{background:rgba(239,68,68,.05);border-left:2px solid rgba(239,68,68,.3);border-radius:0 5px 5px 0;padding:8px 10px;font-size:12px;color:var(--text2);line-height:1.5;margin-bottom:5px;font-style:italic;}
+    .neg-attendants-lbl{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin:10px 0 6px;}
+    .neg-attendant-chip{display:inline-flex;align-items:center;gap:5px;background:var(--bg3);border-radius:5px;padding:3px 9px;font-size:11px;margin:2px;}
+    .neg-att-dot{width:6px;height:6px;border-radius:50%;background:var(--red);}
+
+    /* ── FOOTER ── */
+    .footer{text-align:center;color:var(--text3);font-size:12px;padding:18px;border-top:1px solid var(--border);margin-top:8px;}
+  </style>
+</head>
+<body>
+
+<!-- Loading -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+  <p class="loading-text">Carregando dados do Agenda Edu...</p>
+</div>
+
+<!-- Header -->
+<header>
+  <div class="logo">
+    <div class="logo-icon">📊</div>
+    <div>
+      <div class="logo-text">Agenda Edu Performance</div>
+      <div class="logo-sub">Dashboard de Atendimento</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="badge-live"><div class="pulse" id="pulseDot"></div><span id="lastUpdatedText">Aguardando...</span></div>
+    <span class="countdown-text" id="countdownText"></span>
+    <button class="btn-refresh" onclick="manualRefresh()" id="btnRefresh">↻ Atualizar</button>
+  </div>
+</header>
+
+<!-- Alerta flutuante: 2h sem resposta -->
+<div class="longwait-banner" id="longwaitBanner">
+  <div class="lw-header">
+    <span class="lw-icon">🔔</span>
+    <div class="lw-title">Sem resposta há +2 horas!</div>
+    <span class="lw-count" id="lwCount">0</span>
+    <button class="lw-close" onclick="closeLongWait()" title="Fechar">✕</button>
+  </div>
+  <div class="lw-body" id="lwBody"></div>
+  <div class="lw-footer">
+    <button class="lw-reopen-btn" onclick="manualRefresh()">↻ Atualizar agora</button>
+  </div>
+</div>
+<!-- FAB para reabrir o alerta -->
+<button class="lw-fab" id="lwFab" onclick="reopenLongWait()" title="Ver alertas de 2h">
+  🔔<span class="lw-fab-badge" id="lwFabBadge">0</span>
+</button>
+
+<!-- Main -->
+<main>
+
+  <!-- Alerts -->
+  <div class="sla-alert" id="slaAlert"><span>🚨</span><strong style="margin-right:6px">ALERTA SLA:</strong><span id="slaAlertText"></span></div>
+  <div class="alert" id="configAlert"><span>⚠️</span><span id="configAlertText">Configure as variáveis de ambiente</span></div>
+
+  <!-- Status chips -->
+  <div class="status-row" id="statusRow">
+    <div class="status-chip"><div class="dot waiting"></div>Aguardando: <strong id="chip-waiting">–</strong></div>
+    <div class="status-chip"><div class="dot in_attendance"></div>Em Atendimento: <strong id="chip-inatt">–</strong></div>
+    <div class="status-chip"><div class="dot done"></div>Concluídos: <strong id="chip-done">–</strong></div>
+    <div class="status-chip"><div class="dot pending"></div>Pend. Avaliação: <strong id="chip-pending">–</strong></div>
+    <div class="status-chip">💬 Chats s/ resposta: <strong id="chip-unans">–</strong></div>
+  </div>
+
+  <!-- Métricas -->
+  <div class="metrics-grid">
+    <div class="metric-card c-att">
+      <div class="metric-icon">🎫</div>
+      <div class="metric-value" id="val-total">–</div>
+      <div class="metric-label">Total de Tickets (30 dias)</div>
+      <div class="metric-sub" id="val-today">Hoje: –</div>
+    </div>
+    <div class="metric-card c-wait">
+      <div class="metric-icon">⏳</div>
+      <div class="metric-value" id="val-waiting">–</div>
+      <div class="metric-label">Aguardando Atendimento</div>
+      <div class="metric-sub">Precisam de atenção agora</div>
+    </div>
+    <div class="metric-card c-done">
+      <div class="metric-icon">⏱️</div>
+      <div class="metric-value sm" id="val-avgtime">–</div>
+      <div class="metric-label">Tempo Médio de Resolução</div>
+      <div class="metric-sub">Para tickets concluídos</div>
+    </div>
+    <div class="metric-card c-sla">
+      <div class="metric-icon">🚨</div>
+      <div class="metric-value" id="val-sla">–</div>
+      <div class="metric-label">Violações de SLA</div>
+      <div class="metric-sub">Aguardando &gt; 4 horas</div>
+    </div>
+    <div class="metric-card c-qual">
+      <div class="metric-icon">✏️</div>
+      <div class="metric-value" id="val-quality">–</div>
+      <div class="metric-label">Qualidade de Escrita</div>
+      <div class="metric-sub">Análise de informalidades</div>
+    </div>
+    <div class="metric-card c-rate">
+      <div class="metric-icon">⭐</div>
+      <div class="metric-value" id="val-rating">–</div>
+      <div class="metric-label">Taxa de Avaliação</div>
+      <div class="metric-sub">Tickets com feedback</div>
+    </div>
+  </div>
+
+  <!-- Charts -->
+  <div class="charts-grid">
+    <div class="chart-card">
+      <div class="chart-title">🕐 Tickets por Hora (hoje)</div>
+      <div class="chart-container"><canvas id="chartHour"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">🥧 Distribuição de Status</div>
+      <div class="chart-container"><canvas id="chartStatus"></canvas></div>
+    </div>
+    <div class="chart-card full" id="demandasChartCard" style="display:none">
+      <div class="sec-hd" style="margin-bottom:16px">
+        <div class="sec-title">📊 Principais Demandas dos Pais</div>
+        <div class="sec-sub">Classificação automática por tema</div>
+      </div>
+      <div class="demandas-grid" id="demandasGrid"></div>
+    </div>
+  </div>
+
+  <!-- Ranking -->
+  <div class="ranking-card">
+    <div class="sec-hd">
+      <div class="sec-title">🏆 Ranking de Atendentes</div>
+      <button class="rk-expand-btn" id="rkExpandBtn" onclick="toggleRanking()">Ver todos ▾</button>
+    </div>
+    <table class="rk-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Atendente</th>
+          <th>Total</th>
+          <th>Concluídos</th>
+          <th>Em Atend.</th>
+          <th>Aguardando</th>
+          <th>Tempo Médio</th>
+          <th>Conclusão</th>
+          <th>😤 Humor Pais</th>
+          <th>Avaliações</th>
+        </tr>
+      </thead>
+      <tbody id="rankingBody">
+        <tr><td colspan="10" style="text-align:center;color:var(--text3);padding:28px">Carregando ranking...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Sentimento dos Pais -->
+  <div id="sentimentPaisSection" style="margin-bottom:24px;display:none">
+    <div class="sec-hd">
+      <div class="sec-title">😤 Como os Pais Estão Chegando</div>
+      <div class="sec-sub">Sentimento da mensagem ao abrir o chamado</div>
+    </div>
+    <div class="spais-grid" id="spaisGrid"></div>
+  </div>
+
+  <!-- Detalhamento dos Negativos -->
+  <div id="negativosSection" style="margin-bottom:24px;display:none">
+    <div class="sec-hd">
+      <div class="sec-title">😡 Por que os Pais estão Negativos?</div>
+      <div class="sec-sub">Análise das mensagens com sentimento negativo</div>
+    </div>
+    <div id="negativosGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px"></div>
+  </div>
+
+  <!-- Análise & Plano de Ação -->
+  <div id="planoAcaoSection" class="plano-section">
+    <div class="sec-hd">
+      <div class="sec-title">🤖 Análise & Plano de Ação — Sentimentos Negativos</div>
+      <div class="sec-sub">O que levou os pais a ficarem insatisfeitos e como a escola deve agir</div>
+    </div>
+    <div class="plano-grid" id="planoGrid"></div>
+  </div>
+
+</main>
+
+<div class="footer">Dashboard Agenda Edu Performance · Atualiza a cada 30s · Dados dos últimos 30 dias</div>
+
+<script>
+// ============================================================
+// ESTADO GLOBAL
+// ============================================================
+let charts = {};
+let refreshCountdown = 30;
+let countdownInterval = null;
+let lastMetrics = null;
+const REFRESH_INTERVAL = 30;
+let _rkData = [];
+let _rkExp = false;
+
+// ============================================================
+// TOPICOS INFO (para o painel de demandas)
+// ============================================================
+const TI = {
+  financeiro:   {label:'Financeiro',     emoji:'💰', color:'#f59e0b'},
+  matricula:    {label:'Matrícula',       emoji:'📝', color:'#6366f1'},
+  academico:    {label:'Acadêmico/Notas', emoji:'📚', color:'#06b6d4'},
+  horario:      {label:'Horário/Agenda',  emoji:'🕐', color:'#8b5cf6'},
+  comunicacao:  {label:'Comunicação',     emoji:'📢', color:'#ec4899'},
+  transporte:   {label:'Transporte',      emoji:'🚌', color:'#f97316'},
+  alimentacao:  {label:'Alimentação',     emoji:'🍽️', color:'#10b981'},
+  uniforme:     {label:'Uniforme',        emoji:'👕', color:'#94a3b8'},
+  aplicativo:   {label:'App/Sistema',     emoji:'📱', color:'#06b6d4'},
+  eventos:      {label:'Eventos',         emoji:'🎉', color:'#ec4899'},
+  saude:        {label:'Saúde',           emoji:'🏥', color:'#ef4444'},
+  psicologico:  {label:'Psicológico',     emoji:'🧠', color:'#8b5cf6'},
+  outros:       {label:'Outros',          emoji:'💬', color:'#64748b'}
+};
+
+// ============================================================
+// SENTIMENTO INFO
+// ============================================================
+const SI = {
+  muito_positivo:   {emoji:'😄', label:'Muito positivo', cls:'t-green',  color:'#10b981'},
+  positivo:         {emoji:'🙂', label:'Positivo',       cls:'t-green',  color:'#10b981'},
+  neutro:           {emoji:'😐', label:'Neutro',         cls:'t-gray',   color:'#64748b'},
+  misto:            {emoji:'😕', label:'Misto',          cls:'t-yellow', color:'#f59e0b'},
+  levemente_negativo:{emoji:'😟',label:'Levemente neg.', cls:'t-yellow', color:'#f97316'},
+  negativo:         {emoji:'😡', label:'Negativo',       cls:'t-red',    color:'#ef4444'}
+};
+
+// ============================================================
+// CHARTS INIT
+// ============================================================
+function initCharts() {
+  const gridColor = 'rgba(255,255,255,0.05)';
+  const tickColor = '#475569';
+  const defaults = {
+    plugins: { legend: { labels: { color: '#94a3b8', font: { size: 11, family: 'Inter' } } } },
+    scales: {
+      x: { ticks: { color: tickColor, font: { size: 11 } }, grid: { color: gridColor } },
+      y: { ticks: { color: tickColor, font: { size: 11 } }, grid: { color: gridColor }, beginAtZero: true }
+    }
+  };
+
+  charts.hour = new Chart(document.getElementById('chartHour').getContext('2d'), {
+    type: 'bar',
+    data: { labels: [], datasets: [{ label: 'Tickets', data: [], backgroundColor: 'rgba(99,102,241,0.6)', borderColor: '#6366f1', borderWidth: 1, borderRadius: 5 }] },
+    options: { ...defaults, responsive: true, maintainAspectRatio: false }
+  });
+
+  charts.status = new Chart(document.getElementById('chartStatus').getContext('2d'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Aguardando', 'Em Atendimento', 'Concluído', 'Pend. Avaliação'],
+      datasets: [{ data: [0,0,0,0], backgroundColor: ['rgba(245,158,11,0.8)','rgba(6,182,212,0.8)','rgba(16,185,129,0.8)','rgba(139,92,246,0.8)'], borderColor: '#06060f', borderWidth: 3 }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: '#94a3b8', padding: 14, font: { size: 11, family: 'Inter' } } } }, cutout: '62%' }
+  });
+
+}
+
+// ============================================================
+// RANKING — collapsible top5 + bottom5
+// ============================================================
+function toggleRanking() {
+  _rkExp = !_rkExp;
+  document.getElementById('rkExpandBtn').textContent = _rkExp ? 'Recolher ▴' : 'Ver todos ▾';
+  renderRankingTable(_rkExp, _rkData);
+}
+
+function renderRankingTable(expanded, data) {
+  const tbody = document.getElementById('rankingBody');
+  if (!data || data.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--text3);padding:28px">Nenhum atendente com dados no período</td></tr>';
+    return;
+  }
+  const mxT = data[0].total || 1;
+  if (expanded || data.length <= 10) {
+    tbody.innerHTML = data.map(function(att, i){ return rkRow(att, i, mxT); }).join('');
+    return;
+  }
+  // top 5
+  let html = data.slice(0,5).map(function(att,i){ return rkRow(att,i,mxT); }).join('');
+  // divider
+  if (data.length > 10) {
+    html += '<tr class="divider-row"><td colspan="10">— ' + (data.length - 10) + ' atendentes no meio —</td></tr>';
+  }
+  // bottom 5
+  const bot = data.slice(-5);
+  bot.forEach(function(att, bi) {
+    html += rkRow(att, data.length - 5 + bi, mxT);
+  });
+  tbody.innerHTML = html;
+}
+
+function rkRow(att, idx, mxT) {
+  const rank = idx + 1;
+  const isBottom = idx >= (_rkData.length - 5) && _rkData.length > 5 && !_rkExp;
+  const badgeCls = rank === 1 ? 'rk-1' : rank === 2 ? 'rk-2' : rank === 3 ? 'rk-3' : isBottom ? 'rk-bottom' : 'rk-n';
+  const timeStr = att.avgResolutionTime !== null ? formatMinutes(att.avgResolutionTime) : '–';
+  const compCls = att.completionRate >= 70 ? 't-green' : att.completionRate >= 40 ? 't-yellow' : 't-red';
+  const timeCls = att.avgResolutionTime === null ? 't-gray' : att.avgResolutionTime <= 30 ? 't-green' : att.avgResolutionTime <= 60 ? 't-yellow' : 't-red';
+
+  // Sentiment label for parent
+  const sp = att.sentimentoPaisPredominante || 'neutro';
+  const si = SI[sp] || SI.neutro;
+
+  // Avatar initials
+  const initials = att.name.split(' ').slice(0,2).map(function(w){ return w[0]; }).join('').toUpperCase();
+  const avatarColors = ['#6366f1','#8b5cf6','#ec4899','#06b6d4','#10b981','#f59e0b','#f97316'];
+  const avatarColor = avatarColors[idx % avatarColors.length];
+
+  return '<tr>' +
+    '<td><span class="rk-badge ' + badgeCls + '">' + rank + '</span></td>' +
+    '<td><div style="display:flex;align-items:center;gap:9px"><div class="avatar" style="background:' + avatarColor + '">' + initials + '</div><div><div class="att-name">' + att.name + '</div></div></div></td>' +
+    '<td><strong>' + att.total + '</strong><div class="pbar"><div class="pbar-fill" style="width:' + Math.min(100, (att.total/mxT)*100) + '%;background:var(--primary)"></div></div></td>' +
+    '<td><span class="tag t-green">' + att.done + '</span></td>' +
+    '<td><span class="tag t-cyan">' + att.in_attendance + '</span></td>' +
+    '<td><span class="tag ' + (att.waiting > 0 ? 't-yellow' : 't-gray') + '">' + att.waiting + '</span></td>' +
+    '<td><span class="tag ' + timeCls + '">' + timeStr + '</span></td>' +
+    '<td><span class="tag ' + compCls + '">' + att.completionRate + '%</span></td>' +
+    '<td><span class="tag ' + si.cls + '">' + si.emoji + ' ' + si.label + '</span></td>' +
+    '<td>' + (att.withRating > 0 ? '<span class="tag t-yellow">⭐ ' + att.withRating + ' (' + att.ratingRate + '%)</span>' : '<span class="tag t-gray">–</span>') + '</td>' +
+    '</tr>';
+}
+
+// ============================================================
+// ============================================================
+// DEMANDAS
+// ============================================================
+function updateDemandas(topDemandas) {
+  if (!topDemandas || topDemandas.length === 0) return;
+  document.getElementById('demandasChartCard').style.display = 'block';
+  const maxVal = topDemandas[0].total || 1;
+  document.getElementById('demandasGrid').innerHTML = topDemandas.map(function(d) {
+    const info = TI[d.topico] || TI.outros;
+    const pct = Math.round((d.total / maxVal) * 100);
+    return '<div class="demanda-card">' +
+      '<div class="dem-icon" style="background:' + info.color + '22">' + info.emoji + '</div>' +
+      '<div style="flex:1;min-width:0">' +
+        '<div class="dem-label">' + info.label + '</div>' +
+        '<div class="dem-total" style="color:' + info.color + '">' + d.total + '</div>' +
+        '<div class="dem-bar" style="background:' + info.color + '33;width:100%"><div style="height:3px;border-radius:2px;background:' + info.color + ';width:' + pct + '%"></div></div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+// ============================================================
+// SENTIMENTO DOS PAIS
+// ============================================================
+function updateSentPais(sg) {
+  if (!sg) return;
+  const total = Object.values(sg).reduce(function(a,b){ return a+b; }, 0);
+  if (total === 0) return;
+  document.getElementById('sentimentPaisSection').style.display = 'block';
+  document.getElementById('spaisGrid').innerHTML = Object.entries(sg).map(function(entry) {
+    const key = entry[0], val = entry[1];
+    const si = SI[key] || {emoji:'💬', label:key, color:'#64748b'};
+    const pct = total > 0 ? Math.round((val / total) * 100) : 0;
+    return '<div class="sp-card">' +
+      '<div class="sp-emoji">' + si.emoji + '</div>' +
+      '<div class="sp-label">' + si.label + '</div>' +
+      '<div class="sp-total">' + val + '</div>' +
+      '<div class="sp-pct">' + pct + '% do total</div>' +
+    '</div>';
+  }).join('');
+}
+
+// ============================================================
+// PLANO DE AÇÃO — dicionário por tópico
+// ============================================================
+const PLANOS_ACAO = {
+  financeiro: {
+    causa: 'Os pais chegam insatisfeitos quando há cobranças inesperadas, inconsistências em boletos, atrasos no envio de mensalidades ou falta de clareza nos acordos financeiros.',
+    acoes: ['Revisar comunicação prévia sobre datas e valores de mensalidades', 'Treinar equipe financeira em atendimento de conflitos e negociação', 'Criar FAQ atualizado com as dúvidas financeiras mais frequentes', 'Oferecer canais de negociação claros (parcelamento, desconto, bolsa)']
+  },
+  matricula: {
+    causa: 'Processos de matrícula confusos, demora em confirmar vagas ou falta de comunicação sobre documentação necessária geram insegurança e frustração nos pais.',
+    acoes: ['Documentar o processo de matrícula passo a passo e publicar no app', 'Enviar checklist de documentos com antecedência mínima de 30 dias', 'Criar cronograma de rematrícula com lembretes automáticos', 'Designar responsável exclusivo para atendimento de matrículas']
+  },
+  academico: {
+    causa: 'Insatisfação com notas, avaliações, método de ensino ou falta de comunicação do corpo docente sobre o progresso do aluno.',
+    acoes: ['Estabelecer reuniões periódicas pais-professores para alinhamento', 'Melhorar transparência sobre critérios de avaliação no início do bimestre', 'Criar canal direto entre pais e coordenação pedagógica via app', 'Oferecer reforço escolar para alunos com dificuldades identificadas']
+  },
+  horario: {
+    causa: 'Mudanças no calendário escolar sem aviso antecipado ou falta de clareza sobre turnos e eventos geram desorientação nos pais.',
+    acoes: ['Divulgar calendário anual com antecedência mínima de 30 dias', 'Notificar alterações de horário com pelo menos 48h de antecedência', 'Usar notificações push no app com confirmação de leitura', 'Criar canal de alertas urgentes para alterações de último momento']
+  },
+  comunicacao: {
+    causa: 'Pais se sentem mal informados quando recebem comunicados de forma tardia, incompleta ou por canais inconsistentes.',
+    acoes: ['Revisar frequência e clareza dos comunicados enviados pela escola', 'Sincronizar todos os canais (app, e-mail, WhatsApp) para mensagens uniformes', 'Implementar confirmação de leitura para comunicados importantes', 'Treinar equipe para responder dúvidas em até 2h no horário comercial']
+  },
+  transporte: {
+    causa: 'Problemas com pontualidade, segurança ou ausência de comunicação sobre imprevistos no serviço de transporte geram preocupação intensa nos pais.',
+    acoes: ['Implementar rastreamento em tempo real das rotas para os pais', 'Criar protocolo de comunicação imediata para atrasos ou imprevistos', 'Realizar pesquisa semestral de satisfação com as famílias que usam o transporte', 'Revisar SLAs e cláusulas de pontualidade com fornecedores']
+  },
+  alimentacao: {
+    causa: 'Insatisfação com qualidade, variedade, restrições alimentares não atendidas ou falta de comunicação sobre o cardápio.',
+    acoes: ['Divulgar cardápio semanal no app com antecedência', 'Criar canal para sugestões e feedbacks sobre alimentação', 'Realizar avaliação trimestral de qualidade do serviço de alimentação', 'Mapear alunos com restrições alimentares e garantir opções adequadas']
+  },
+  uniforme: {
+    causa: 'Problemas com qualidade, prazo de entrega ou tamanhos indisponíveis geram insatisfação, especialmente no início do ano letivo.',
+    acoes: ['Abrir pedidos de uniforme com maior antecedência (mínimo 60 dias antes)', 'Criar política clara de trocas e devoluções', 'Divulgar tabela de medidas atualizada e tutorial de escolha', 'Manter estoque mínimo de peças básicas durante todo o ano letivo']
+  },
+  aplicativo: {
+    causa: 'Dificuldades técnicas de acesso, login ou usabilidade do aplicativo impedem os pais de receber informações importantes.',
+    acoes: ['Criar tutorial em vídeo para onboarding de novos usuários no início do ano', 'Oferecer suporte técnico via chat dedicado no horário comercial', 'Simplificar o processo de recuperação de senha (máx. 2 etapas)', 'Testar novas versões com grupo piloto antes do lançamento geral']
+  },
+  eventos: {
+    causa: 'Falta de informação prévia, desorganização ou logística inadequada em apresentações e eventos escolares frustram pais que se planejam para participar.',
+    acoes: ['Divulgar calendário de eventos com pelo menos 3 semanas de antecedência', 'Criar FAQ específico para cada grande evento escolar', 'Designar responsável de comunicação e logística para cada evento', 'Coletar feedback pós-evento e aplicar melhorias na próxima edição']
+  },
+  saude: {
+    causa: 'Preocupações com saúde, medicações ou atendimento emergencial na escola geram alta ansiedade nos pais quando não há protocolo claro.',
+    acoes: ['Revisar e comunicar o protocolo de saúde e emergências para todos os pais', 'Garantir equipe treinada em primeiros socorros em todos os turnos', 'Criar canal seguro para comunicação sobre necessidades médicas especiais', 'Documentar e compartilhar o plano de ação para emergências médicas']
+  },
+  psicologico: {
+    causa: 'Questões emocionais, comportamentais ou de socialização dos alunos geram angústia nos pais quando não há suporte claro da escola.',
+    acoes: ['Fortalecer a equipe de psicologia e orientação educacional', 'Criar fluxo claro para encaminhamento de casos de suporte emocional', 'Oferecer grupos de orientação para pais sobre saúde mental infantil', 'Implementar atividades preventivas de bem-estar socioemocional na grade']
+  },
+  outros: {
+    causa: 'Demandas variadas que não se enquadram nas categorias principais indicam possível gap nos canais de atendimento ou necessidade de novos fluxos.',
+    acoes: ['Revisar e ampliar as categorias de atendimento disponíveis no app', 'Criar canal de "outros assuntos" com triagem eficiente por setor', 'Analisar padrões mensais para identificar novas categorias de demanda', 'Garantir redirecionamento ágil ao setor correto (máx. 1 transferência)']
+  }
+};
+
+// ============================================================
+// PLANO DE AÇÃO — render
+// ============================================================
+function updatePlanoAcao(analise) {
+  if (!analise || analise.length === 0) return;
+  const section = document.getElementById('planoAcaoSection');
+  const grid = document.getElementById('planoGrid');
+  section.style.display = 'block';
+
+  grid.innerHTML = analise.map(function(item) {
+    const info = TI[item.topico] || TI.outros;
+    const plano = PLANOS_ACAO[item.topico] || PLANOS_ACAO.outros;
+    const cardCls = item.count >= 5 ? 'neg' : 'misto';
+
+    const fraserHtml = item.frases && item.frases.length > 0
+      ? '<div class="plano-frases">' +
+          '<div class="plano-frases-lbl">💬 Exemplos de mensagens recebidas</div>' +
+          item.frases.map(function(f) {
+            return '<div class="plano-frase">' + f.replace(/"/g, "'") + (f.length >= 130 ? '...' : '') + '</div>';
+          }).join('') +
+        '</div>'
+      : '';
+
+    const acoesHtml = plano.acoes.map(function(a, i) {
+      return '<div class="plano-item">' +
+        '<div class="plano-num">' + (i + 1) + '</div>' +
+        '<div class="plano-txt">' + a + '</div>' +
+      '</div>';
+    }).join('');
+
+    return '<div class="plano-card ' + cardCls + '">' +
+      '<div class="plano-topico-row">' +
+        '<div class="plano-icon" style="background:' + info.color + '22">' + info.emoji + '</div>' +
+        '<div>' +
+          '<div class="plano-nm">' + info.label + '</div>' +
+          '<div class="plano-cnt">' + item.count + ' ticket' + (item.count !== 1 ? 's' : '') + ' com sentimento negativo/misto</div>' +
+        '</div>' +
+        '<div class="plano-badge-neg">⚠️ ' + item.count + '</div>' +
+      '</div>' +
+      '<div class="plano-causa">' +
+        '<div class="plano-causa-lbl">🔍 Por que isso acontece?</div>' +
+        '<div class="plano-causa-txt">' + plano.causa + '</div>' +
+      '</div>' +
+      '<div class="plano-acoes-lbl">✅ Plano de Ação</div>' +
+      acoesHtml +
+      fraserHtml +
+    '</div>';
+  }).join('');
+}
+
+// ============================================================
+// UPDATE UI
+// ============================================================
+function updateUI(data) {
+  if (!data || data.error) {
+    const alertEl = document.getElementById('configAlert');
+    alertEl.classList.add('show');
+    document.getElementById('configAlertText').textContent = data?.error || 'Erro ao carregar dados';
+    return;
+  }
+  document.getElementById('configAlert').classList.remove('show');
+
+  const { summary, ranking, ticketsPerHour } = data;
+
+  // Metric cards
+  setText('val-total', summary.totalTickets.toLocaleString('pt-BR'));
+  setText('val-today', 'Hoje: ' + summary.ticketsToday);
+  setText('val-waiting', summary.statusCount.waiting);
+  setText('val-avgtime', summary.avgResolutionTime !== null ? formatMinutes(summary.avgResolutionTime) : 'N/A');
+  setText('val-sla', summary.slaBreaches);
+  setText('val-quality', summary.writingQuality !== null ? summary.writingQuality + '%' : 'N/A');
+  setText('val-rating', summary.ratingRate + '%');
+
+  // Status chips
+  setText('chip-waiting', summary.statusCount.waiting);
+  setText('chip-inatt', summary.statusCount.in_attendance);
+  setText('chip-done', summary.statusCount.done);
+  setText('chip-pending', summary.statusCount.pending_ratings);
+  setText('chip-unans', summary.unansweredChats);
+
+  // SLA
+  const slaAlert = document.getElementById('slaAlert');
+  if (summary.slaBreaches > 0) {
+    slaAlert.classList.add('show');
+    setText('slaAlertText', summary.slaBreaches + ' ticket' + (summary.slaBreaches > 1 ? 's' : '') + ' aguardando há mais de 4 horas!');
+  } else {
+    slaAlert.classList.remove('show');
+  }
+
+  // Last updated
+  if (data.lastUpdated) {
+    const d = new Date(data.lastUpdated);
+    setText('lastUpdatedText', 'Atualizado ' + d.toLocaleTimeString('pt-BR'));
+  }
+
+  // Charts
+  charts.hour.data.labels = ticketsPerHour.map(function(t){ return t.hour; });
+  charts.hour.data.datasets[0].data = ticketsPerHour.map(function(t){ return t.count; });
+  charts.hour.update('none');
+
+  charts.status.data.datasets[0].data = [
+    summary.statusCount.waiting,
+    summary.statusCount.in_attendance,
+    summary.statusCount.done,
+    summary.statusCount.pending_ratings
+  ];
+  charts.status.update('none');
+
+  // Ranking
+  _rkData = ranking || [];
+  renderRankingTable(_rkExp, _rkData);
+
+  // Demandas
+  if (summary.topDemandas) updateDemandas(summary.topDemandas);
+
+  // Sentimento dos pais
+  if (summary.sentimentoPaisGeral) updateSentPais(summary.sentimentoPaisGeral);
+
+  // Análise & Plano de Ação
+  if (summary.analisePlanoAcao && summary.analisePlanoAcao.length > 0) updatePlanoAcao(summary.analisePlanoAcao);
+
+  // Detalhamento por que os pais estão negativos
+  if (summary.analisePlanoAcao && summary.analisePlanoAcao.length > 0) updateNegativosSection(summary.analisePlanoAcao);
+
+  // Alerta flutuante de 2h sem resposta
+  if (summary.longWaitTickets) updateLongWaitAlert(summary.longWaitTickets);
+}
+
+// ============================================================
+// FETCH
+// ============================================================
+function hideOverlay() {
+  document.getElementById('loadingOverlay').style.display = 'none';
+}
+
+async function fetchMetrics() {
+  try {
+    const res = await fetch('/api/metrics');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); } catch(e) {
+      throw new Error('Resposta inválida do servidor (não é JSON)');
+    }
+    lastMetrics = data;
+    hideOverlay();
+    updateUI(data);
+    document.getElementById('pulseDot').style.background = 'var(--green)';
+  } catch (err) {
+    console.error('Erro ao buscar métricas:', err);
+    hideOverlay();
+    document.getElementById('pulseDot').style.background = 'var(--red)';
+    if (!lastMetrics) {
+      document.getElementById('configAlert').classList.add('show');
+      document.getElementById('configAlertText').textContent = 'Erro de conexão: ' + err.message;
+    }
+  }
+}
+
+async function manualRefresh() {
+  const btn = document.getElementById('btnRefresh');
+  btn.disabled = true; btn.textContent = '↻ Atualizando...';
+  try {
+    await fetch('/api/refresh', { method: 'POST' });
+    await fetchMetrics();
+    refreshCountdown = REFRESH_INTERVAL;
+  } finally {
+    btn.disabled = false; btn.textContent = '↻ Atualizar';
+  }
+}
+
+// ============================================================
+// COUNTDOWN
+// ============================================================
+function startCountdown() {
+  clearInterval(countdownInterval);
+  refreshCountdown = REFRESH_INTERVAL;
+  countdownInterval = setInterval(function() {
+    refreshCountdown--;
+    document.getElementById('countdownText').textContent = 'Próx. em ' + refreshCountdown + 's';
+    if (refreshCountdown <= 0) { fetchMetrics(); refreshCountdown = REFRESH_INTERVAL; }
+  }, 1000);
+}
+
+// ============================================================
+// HELPERS
+// ============================================================
+function setText(id, val) { const el = document.getElementById(id); if (el) el.textContent = val; }
+function formatMinutes(min) {
+  if (min === null || min === undefined) return '–';
+  if (min < 60) return min + ' min';
+  const h = Math.floor(min / 60), m = min % 60;
+  return m > 0 ? h + 'h ' + m + 'm' : h + 'h';
+}
+
+// ============================================================
+// ALERTA 2H SEM RESPOSTA
+// ============================================================
+let _lwDismissed = false;
+
+function updateLongWaitAlert(longWaitTickets) {
+  const banner = document.getElementById('longwaitBanner');
+  const fab    = document.getElementById('lwFab');
+  const body   = document.getElementById('lwBody');
+  const count  = document.getElementById('lwCount');
+  const fabBadge = document.getElementById('lwFabBadge');
+
+  if (!longWaitTickets || longWaitTickets.length === 0) {
+    banner.classList.remove('show');
+    fab.classList.remove('show');
+    _lwDismissed = false;
+    return;
+  }
+
+  count.textContent = longWaitTickets.length;
+  fabBadge.textContent = longWaitTickets.length;
+
+  body.innerHTML = longWaitTickets.map(function(t) {
+    const timeStr = t.hoursWaiting + 'h' + (t.minutesExtra > 0 ? t.minutesExtra + 'm' : '');
+    const statusLabel = t.status === 'waiting' ? 'Aguardando' : 'Em Atend.';
+    const statusCls   = t.status === 'waiting' ? 'lw-status-waiting' : 'lw-status-in_attendance';
+    return '<div class="lw-item">' +
+      '<div class="lw-item-top">' +
+        '<div><div class="lw-time">' + timeStr + '</div><div class="lw-time-label">sem resposta</div></div>' +
+        '<span class="lw-status-badge ' + statusCls + '">' + statusLabel + '</span>' +
+      '</div>' +
+      '<div class="lw-channel">📢 ' + t.channelName + '</div>' +
+      '<div class="lw-attendant">👤 ' + t.attendantName + '</div>' +
+    '</div>';
+  }).join('');
+
+  if (!_lwDismissed) {
+    banner.classList.add('show');
+    fab.classList.remove('show');
+  } else {
+    fab.classList.add('show');
+  }
+}
+
+function closeLongWait() {
+  _lwDismissed = true;
+  document.getElementById('longwaitBanner').classList.remove('show');
+  document.getElementById('lwFab').classList.add('show');
+}
+
+function reopenLongWait() {
+  _lwDismissed = false;
+  document.getElementById('longwaitBanner').classList.add('show');
+  document.getElementById('lwFab').classList.remove('show');
+}
+
+// ============================================================
+// DETALHAMENTO DOS PAIS NEGATIVOS
+// ============================================================
+function updateNegativosSection(analisePlanoAcao) {
+  if (!analisePlanoAcao || analisePlanoAcao.length === 0) return;
+
+  // Filtra apenas os com frases para mostrar o motivo real
+  const comDados = analisePlanoAcao.filter(function(item) {
+    return item.frases && item.frases.length > 0;
+  });
+  if (comDados.length === 0) return;
+
+  document.getElementById('negativosSection').style.display = 'block';
+
+  document.getElementById('negativosGrid').innerHTML = comDados.map(function(item) {
+    const info = TI[item.topico] || TI.outros;
+
+    // Keywords detectadas
+    const kwHtml = (item.keywordsDetectadas || []).length > 0
+      ? '<div class="neg-keywords-lbl">🔍 Palavras detectadas</div>' +
+        item.keywordsDetectadas.map(function(kw) {
+          return '<span class="neg-keyword">' + kw + '</span>';
+        }).join('')
+      : '';
+
+    // Mensagens dos pais
+    const msgHtml = item.frases.length > 0
+      ? '<div class="neg-msg-lbl">💬 O que os pais estão dizendo</div>' +
+        item.frases.map(function(f) {
+          return '<div class="neg-msg">"' + f.replace(/"/g, "'") + (f.length >= 145 ? '...' : '') + '"</div>';
+        }).join('')
+      : '';
+
+    // Atendentes que mais receberam negativos neste tópico
+    const attHtml = (item.atendentes || []).length > 0
+      ? '<div class="neg-attendants-lbl">👤 Atendentes com negativos neste tema</div>' +
+        item.atendentes.map(function(a) {
+          return '<span class="neg-attendant-chip"><span class="neg-att-dot"></span>' + a.nome + ' (' + a.qtd + ')</span>';
+        }).join('')
+      : '';
+
+    return '<div class="neg-card">' +
+      '<div class="neg-card-header">' +
+        '<div class="neg-topic-icon" style="background:' + info.color + '22">' + info.emoji + '</div>' +
+        '<div>' +
+          '<div class="neg-topic-name">' + info.label + '</div>' +
+          '<div class="neg-topic-cnt">' + item.count + ' ticket' + (item.count !== 1 ? 's' : '') + ' negativo' + (item.count !== 1 ? 's' : '') + '</div>' +
+        '</div>' +
+        '<span class="neg-badge">😡 ' + item.count + '</span>' +
+      '</div>' +
+      kwHtml +
+      msgHtml +
+      attHtml +
+    '</div>';
+  }).join('');
+}
+
+// ============================================================
+// INIT
+// ============================================================
+// Fallback: força ocultar overlay após 8s (caso fetch falhe silenciosamente)
+setTimeout(hideOverlay, 8000);
+initCharts();
+fetchMetrics();
+startCountdown();
+</script>
+</body>
+</html>

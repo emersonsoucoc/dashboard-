@@ -1,0 +1,19 @@
+# Dependências — nunca sobe pro GitHub
+node_modules/
+
+# Arquivos de credenciais — NUNCA sobem pro GitHub!
+.env
+.env.staging
+.env.production
+
+# Logs
+*.log
+npm-debug.log*
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
