@@ -897,7 +897,7 @@ app.post('/api/familias/refresh', async (req, res) => {
   }
 });
 
-// Rota de debug: testa o endpoint /members de um canal específico
+// Rota de debug: testa o endpoint /members e mostra estrutura sem dados sensíveis
 app.get('/api/debug-members/:channelId', async (req, res) => {
   const { channelId } = req.params;
   try {
@@ -906,21 +906,33 @@ app.get('/api/debug-members/:channelId', async (req, res) => {
       headers: getRequestHeaders(),
       timeout: 15000
     });
+    const raw = response.data;
+    const isArray = Array.isArray(raw);
+    const items  = isArray ? raw : (raw.data || []);
+    const first  = items[0] || null;
+
+    // Retorna só estrutura — sem valores sensíveis
     res.json({
-      status: response.status,
-      url,
-      dataKeys: Object.keys(response.data || {}),
-      meta: response.data?.meta,
-      totalItems: response.data?.data?.length,
-      firstItem: response.data?.data?.[0],
-      rawSample: JSON.stringify(response.data).substring(0, 2000)
+      httpStatus:      response.status,
+      isArrayAtRoot:   isArray,
+      rootKeys:        isArray ? '(array)' : Object.keys(raw),
+      meta:            isArray ? null : raw.meta,
+      totalItemsPage:  items.length,
+      firstItemKeys:   first ? Object.keys(first) : null,
+      firstAttrKeys:   first?.attributes ? Object.keys(first.attributes) : null,
+      firstAttrSample: first?.attributes
+        ? Object.fromEntries(
+            Object.entries(first.attributes)
+              .filter(([k]) => !['name','email','phone','cpf','document'].includes(k))
+              .slice(0, 15)
+          )
+        : null,
+      firstType: first?.type || null,
     });
   } catch (error) {
     res.status(500).json({
       error: error.message,
-      status: error.response?.status,
-      url: `${BASE_URL}/schools/messages/channels/${channelId}/members`,
-      responseData: JSON.stringify(error.response?.data || {}).substring(0, 1000)
+      httpStatus: error.response?.status
     });
   }
 });
