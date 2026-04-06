@@ -1447,11 +1447,11 @@ tbody td:first-child { color:var(--txt-primary); font-weight:500; }
 
   <div class="page-header">
     <div>
-      <h1 class="page-title">Painel de Famílias</h1>
-      <div class="page-subtitle">Adesão, engajamento e famílias que ainda não abriram o canal.</div>
+      <h1 class="page-title">Painel de Engajamento</h1>
+      <div class="page-subtitle">Conversas por canal, status de atendimento e análise por turma — dados em tempo real dos tickets.</div>
     </div>
     <div class="page-header-right">
-      <div class="live-badge"><span class="live-dot"></span>Atualiza a cada 5 min</div>
+      <div class="live-badge"><span class="live-dot"></span>Sincronizado com tickets</div>
       <button class="btn-outline" id="btn-refresh-familias">
         <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
         Atualizar
@@ -1469,66 +1469,66 @@ tbody td:first-child { color:var(--txt-primary); font-weight:500; }
   <!-- KPIs -->
   <div class="fam-kpis">
     <div class="fam-kpi-card" style="animation-delay:.04s">
-      <div class="fam-kpi-label">Total de Famílias</div>
+      <div class="fam-kpi-label">Total de Conversas</div>
       <div class="fam-kpi-value" id="fam-total">—</div>
       <div class="fam-kpi-sub"><span class="fam-badge-purple" id="fam-total-canais">— canais</span></div>
     </div>
     <div class="fam-kpi-card" style="animation-delay:.08s">
-      <div class="fam-kpi-label">Aderiram ao Canal</div>
+      <div class="fam-kpi-label">Em Atendimento</div>
       <div class="fam-kpi-value" id="fam-joined">—</div>
       <div class="fam-progress-bar"><div class="fam-progress-fill" id="fam-joined-bar" style="background:var(--green-text);width:0%"></div></div>
-      <div class="fam-kpi-sub"><span class="fam-badge-green" id="fam-joined-rate">—%</span> aderiram</div>
+      <div class="fam-kpi-sub"><span class="fam-badge-green" id="fam-joined-rate">—%</span> do total</div>
     </div>
     <div class="fam-kpi-card" style="animation-delay:.12s">
-      <div class="fam-kpi-label">Nunca Abriram</div>
+      <div class="fam-kpi-label">Pendentes</div>
       <div class="fam-kpi-value" id="fam-never-opened">—</div>
-      <div class="fam-progress-bar"><div class="fam-progress-fill" id="fam-never-bar" style="background:var(--red-text);width:0%"></div></div>
-      <div class="fam-kpi-sub"><span class="fam-badge-red" id="fam-never-rate">—%</span> sem acesso</div>
+      <div class="fam-progress-bar"><div class="fam-progress-fill" id="fam-never-bar" style="background:var(--amber);width:0%"></div></div>
+      <div class="fam-kpi-sub"><span class="fam-badge-red" id="fam-never-rate">—%</span> aguardando</div>
     </div>
     <div class="fam-kpi-card" style="animation-delay:.16s">
-      <div class="fam-kpi-label">Ativos (últimos 7 dias)</div>
+      <div class="fam-kpi-label">Com Avaliação</div>
       <div class="fam-kpi-value" id="fam-active-week">—</div>
       <div class="fam-progress-bar"><div class="fam-progress-fill" id="fam-active-bar" style="background:var(--purple-mid);width:0%"></div></div>
-      <div class="fam-kpi-sub"><span class="fam-badge-blue" id="fam-active-rate">—%</span> engajados</div>
+      <div class="fam-kpi-sub"><span class="fam-badge-blue" id="fam-active-rate">—%</span> avaliadas</div>
     </div>
   </div>
 
   <!-- Gráficos -->
   <div class="fam-charts-row">
-    <!-- Donut: Adesão -->
+    <!-- Donut: Status das conversas -->
     <div class="card" style="animation-delay:.18s">
       <div class="card-header">
-        <div class="card-title">Adesão Geral</div>
+        <div class="card-title">Status das Conversas</div>
       </div>
       <div style="position:relative;height:200px;display:flex;align-items:center;justify-content:center">
         <canvas id="famDonutChart" style="max-width:190px;max-height:190px"></canvas>
         <div id="famDonutCenter" style="position:absolute;text-align:center;pointer-events:none">
           <div style="font-size:26px;font-weight:800;letter-spacing:-1px" id="famDonutPct">—</div>
-          <div style="font-size:11px;color:var(--txt-muted)">aderiram</div>
+          <div style="font-size:11px;color:var(--txt-muted)">em atend.</div>
         </div>
       </div>
       <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px">
         <div style="display:flex;justify-content:space-between;font-size:12.5px;align-items:center">
-          <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:50%;background:var(--green-text);display:inline-block"></span><span style="color:var(--txt-secondary)">Aderiram</span></span>
+          <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:50%;background:var(--green-text);display:inline-block"></span><span style="color:var(--txt-secondary)">Em Atendimento</span></span>
           <span style="font-weight:700" id="fam-legend-joined">—</span>
         </div>
         <div style="display:flex;justify-content:space-between;font-size:12.5px;align-items:center">
-          <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:50%;background:var(--red-text);display:inline-block"></span><span style="color:var(--txt-secondary)">Não aderiram</span></span>
+          <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:50%;background:#D97706;display:inline-block"></span><span style="color:var(--txt-secondary)">Pendentes</span></span>
           <span style="font-weight:700" id="fam-legend-notjoined">—</span>
         </div>
         <div style="display:flex;justify-content:space-between;font-size:12.5px;align-items:center">
-          <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:50%;background:var(--purple-mid);display:inline-block"></span><span style="color:var(--txt-secondary)">Ativos (7d)</span></span>
+          <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:50%;background:var(--purple-mid);display:inline-block"></span><span style="color:var(--txt-secondary)">Com Avaliação</span></span>
           <span style="font-weight:700" id="fam-legend-active">—</span>
         </div>
       </div>
     </div>
 
-    <!-- Barras: Engajamento por turma -->
+    <!-- Barras: Conversas por canal -->
     <div class="card" style="animation-delay:.22s">
       <div class="card-header">
         <div>
-          <div class="card-title">Engajamento por Turma / Canal</div>
-          <div style="font-size:11.5px;color:var(--txt-muted);margin-top:2px">% de famílias que abriram o canal</div>
+          <div class="card-title">Conversas por Canal / Turma</div>
+          <div style="font-size:11.5px;color:var(--txt-muted);margin-top:2px">Volume de tickets por canal (maiores primeiro)</div>
         </div>
       </div>
       <div id="famChannelBars" style="margin-top:8px"></div>
@@ -1539,9 +1539,9 @@ tbody td:first-child { color:var(--txt-primary); font-weight:500; }
   <div class="card" style="animation-delay:.26s">
     <div class="card-header" style="flex-wrap:wrap;gap:10px">
       <div class="fam-tabs">
-        <button class="fam-tab active" data-fam-tab="never-opened">⚠ Nunca Abriram <span id="fam-tab-count-never" style="margin-left:4px;font-size:11px;opacity:.7"></span></button>
-        <button class="fam-tab" data-fam-tab="ranking">🏆 Mais Engajadas</button>
-        <button class="fam-tab" data-fam-tab="channels">📊 Por Turma</button>
+        <button class="fam-tab active" data-fam-tab="channels">📊 Por Canal</button>
+        <button class="fam-tab" data-fam-tab="ranking">⏰ Pico de Atividade</button>
+        <button class="fam-tab" data-fam-tab="never-opened">👤 Ex-Alunos <span id="fam-tab-count-never" style="margin-left:4px;font-size:11px;opacity:.7"></span></button>
       </div>
       <div style="flex:1"></div>
       <div class="fam-search-wrap">
@@ -1550,58 +1550,53 @@ tbody td:first-child { color:var(--txt-primary); font-weight:500; }
       </div>
     </div>
 
-    <!-- Aba: Nunca abriram -->
-    <div class="fam-table-panel active" id="fam-panel-never-opened">
+    <!-- Aba: Por canal -->
+    <div class="fam-table-panel active" id="fam-panel-channels">
       <div class="table-wrap">
         <table class="fam-table">
           <thead><tr>
             <th>#</th>
-            <th>Responsável</th>
-            <th>Aluno</th>
-            <th>Turma / Canal</th>
-            <th>Aderiu?</th>
-            <th>Convidado em</th>
-            <th>Ação sugerida</th>
+            <th>Canal / Turma</th>
+            <th>Total</th>
+            <th>Em Atend.</th>
+            <th>Pendentes</th>
+            <th>Resolvidas</th>
+            <th>Avaliadas</th>
+            <th>% Avaliação</th>
+            <th>Ex-Alunos</th>
           </tr></thead>
-          <tbody id="famNeverOpenedBody"></tbody>
+          <tbody id="famChannelsBody"></tbody>
         </table>
       </div>
-      <div class="fam-loading-state" id="fam-never-loading" style="display:none">Carregando dados de famílias...</div>
+      <div class="fam-loading-state" id="fam-never-loading" style="display:none">Carregando dados...</div>
     </div>
 
-    <!-- Aba: Ranking engajamento -->
+    <!-- Aba: Pico de atividade por hora -->
     <div class="fam-table-panel" id="fam-panel-ranking">
       <div class="table-wrap">
         <table class="fam-table">
           <thead><tr>
-            <th>#</th>
-            <th>Responsável</th>
-            <th>Aluno</th>
-            <th>Turma / Canal</th>
-            <th>Último acesso</th>
-            <th>Status</th>
+            <th>Hora</th>
+            <th>Conversas Abertas</th>
+            <th>Gráfico</th>
           </tr></thead>
           <tbody id="famRankingBody"></tbody>
         </table>
       </div>
     </div>
 
-    <!-- Aba: Por turma -->
-    <div class="fam-table-panel" id="fam-panel-channels">
+    <!-- Aba: Ex-alunos por canal -->
+    <div class="fam-table-panel" id="fam-panel-never-opened">
       <div class="table-wrap">
         <table class="fam-table">
           <thead><tr>
             <th>#</th>
-            <th>Turma / Canal</th>
-            <th>Total</th>
-            <th>Aderiram</th>
-            <th>Taxa Adesão</th>
-            <th>Abriram</th>
-            <th>Taxa Abertura</th>
-            <th>Nunca Abriram</th>
-            <th>Ativos (7d)</th>
+            <th>Canal / Turma</th>
+            <th>Total Conversas</th>
+            <th>Ex-Alunos</th>
+            <th>% Ex-Alunos</th>
           </tr></thead>
-          <tbody id="famChannelsBody"></tbody>
+          <tbody id="famNeverOpenedBody"></tbody>
         </table>
       </div>
     </div>
@@ -2515,7 +2510,7 @@ setInterval(fetchAndUpdate, 30000); // refresh automático a cada 30s
 
 let famDonutChart = null;
 let famData = null;
-let famCurrentTab = 'never-opened';
+let famCurrentTab = 'channels';
 let famSearchQuery = '';
 
 // ── Inicialização do gráfico donut ──────────────────────
@@ -2525,10 +2520,10 @@ function initFamDonut() {
   famDonutChart = new Chart(ctx, {
     type: 'doughnut',
     data: {
-      labels: ['Aderiram', 'Não aderiram', 'Ativos (7d)'],
+      labels: ['Em Atendimento', 'Pendentes', 'Com Avaliação'],
       datasets: [{
         data: [0, 0, 0],
-        backgroundColor: ['#15803D', '#DC2626', '#7C3AED'],
+        backgroundColor: ['#15803D', '#D97706', '#7C3AED'],
         borderWidth: 0,
         hoverOffset: 4
       }]
@@ -2563,92 +2558,72 @@ function famFmtDate(isoStr) {
   return new Date(isoStr).toLocaleDateString('pt-BR');
 }
 
-// ── Render: barras de engajamento por canal ──────────────
+// ── Render: barras de conversas por canal ──────────────
 function renderFamChannelBars(channelStats) {
   const container = document.getElementById('famChannelBars');
   if (!container) return;
-  const top = [...channelStats].sort((a, b) => a.openedRate - b.openedRate).slice(0, 15);
+  const top = [...channelStats].sort((a, b) => b.total - a.total).slice(0, 15);
+  const maxTotal = top[0]?.total || 1;
   container.innerHTML = top.map(c => {
-    const color = c.openedRate >= 70 ? '#15803D' : c.openedRate >= 40 ? '#D97706' : '#DC2626';
+    const pct = Math.round((c.total / maxTotal) * 100);
+    const color = c.inAttendance > c.pending ? '#15803D' : '#D97706';
     const shortName = c.name.length > 30 ? c.name.slice(0, 28) + '…' : c.name;
     return `
       <div class="fam-bar-row">
         <div class="fam-bar-label" title="${c.name}">${shortName}</div>
         <div class="fam-bar-track">
-          <div class="fam-bar-fill" style="width:${c.openedRate}%;background:${color}"></div>
+          <div class="fam-bar-fill" style="width:${pct}%;background:${color}"></div>
         </div>
-        <div class="fam-bar-pct" style="color:${color}">${c.openedRate}%</div>
+        <div class="fam-bar-pct" style="color:${color}">${c.total}</div>
       </div>`;
   }).join('');
 }
 
-// ── Render: tabela "Nunca Abriram" ────────────────────────
-function renderFamNeverOpened(list) {
+// ── Render: tabela "Ex-Alunos por Canal" ────────────────────────
+function renderFamNeverOpened(channelStats) {
   const tbody = document.getElementById('famNeverOpenedBody');
   if (!tbody) return;
   const query = famSearchQuery.toLowerCase();
-  const filtered = list.filter(f =>
-    !query ||
-    (f.name || '').toLowerCase().includes(query) ||
-    (f.channelName || '').toLowerCase().includes(query) ||
-    (f.studentName || '').toLowerCase().includes(query)
-  );
-  document.getElementById('fam-tab-count-never').textContent = `(${filtered.length})`;
-  tbody.innerHTML = filtered.map((f, i) => `
+  const list = [...channelStats].filter(c => c.exStudents > 0 || !query);
+  const filtered = list.filter(c => !query || c.name.toLowerCase().includes(query));
+  const tabEl = document.getElementById('fam-tab-count-never');
+  if (tabEl) tabEl.textContent = `(${filtered.length})`;
+  tbody.innerHTML = filtered.map((c, i) => {
+    const rateColor = c.exStudentRate >= 50 ? 'var(--red-text)' : c.exStudentRate >= 20 ? 'var(--amber)' : 'var(--txt-muted)';
+    return `
     <tr>
-      <td style="color:var(--txt-muted);font-size:12px">${i + 1}</td>
-      <td>
-        <div style="font-weight:600;font-size:13px">${f.name || '—'}</div>
-      </td>
-      <td style="color:var(--txt-secondary)">${f.studentName || '—'}</td>
-      <td><span class="fam-channel-chip">${f.channelName || '—'}</span></td>
-      <td>
-        ${f.hasJoined
-          ? '<span class="fam-badge-green">✓ Aderiu</span>'
-          : '<span class="fam-badge-red">✗ Não aderiu</span>'}
-      </td>
-      <td style="color:var(--txt-secondary)">${famFmtDate(f.invitedAt)}</td>
-      <td>
-        <span style="font-size:11.5px;color:var(--txt-muted)">
-          ${f.hasJoined ? '📢 Enviar lembrete' : '📩 Reenviar convite'}
-        </span>
-      </td>
-    </tr>`).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--txt-muted);padding:32px">Nenhuma família encontrada</td></tr>';
+      <td style="color:var(--txt-muted)">${i + 1}</td>
+      <td style="font-weight:600;font-size:13px">${c.name}</td>
+      <td style="font-weight:700">${c.total}</td>
+      <td style="font-weight:700;color:${c.exStudents > 0 ? 'var(--amber)' : 'var(--txt-muted)'}">${c.exStudents}</td>
+      <td><span style="font-weight:700;color:${rateColor}">${c.exStudentRate}%</span></td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--txt-muted);padding:32px">Nenhum canal com ex-alunos</td></tr>';
 }
 
-// ── Render: tabela "Ranking Engajamento" ─────────────────
-function renderFamRanking(list) {
+// ── Render: tabela "Pico de Atividade por Hora" ─────────────────
+function renderFamRanking(activityByHour) {
   const tbody = document.getElementById('famRankingBody');
   if (!tbody) return;
-  const query = famSearchQuery.toLowerCase();
-  const filtered = list.filter(f =>
-    !query ||
-    (f.name || '').toLowerCase().includes(query) ||
-    (f.channelName || '').toLowerCase().includes(query) ||
-    (f.studentName || '').toLowerCase().includes(query)
-  );
-  tbody.innerHTML = filtered.map((f, i) => {
-    const diff = f.lastSeenAt ? Date.now() - new Date(f.lastSeenAt).getTime() : Infinity;
-    const isActiveWeek  = diff < 7  * 86400000;
-    const isActiveMonth = diff < 30 * 86400000;
-    const statusLabel = isActiveWeek
-      ? '<span class="fam-badge-green">🟢 Ativo esta semana</span>'
-      : isActiveMonth
-        ? '<span class="fam-badge-amber">🟡 Ativo este mês</span>'
-        : '<span class="fam-badge-red">🔴 Inativo</span>';
+  const maxVal = Math.max(...activityByHour, 1);
+  tbody.innerHTML = activityByHour.map((count, h) => {
+    const pct = Math.round((count / maxVal) * 100);
+    const label = `${String(h).padStart(2,'0')}:00`;
+    const color = count >= maxVal * 0.7 ? '#15803D' : count >= maxVal * 0.4 ? '#D97706' : '#6B7280';
     return `
       <tr>
-        <td style="color:var(--txt-muted);font-weight:700;font-size:13px">${i < 3 ? ['🥇','🥈','🥉'][i] : i+1}</td>
-        <td><div style="font-weight:600">${f.name || '—'}</div></td>
-        <td style="color:var(--txt-secondary)">${f.studentName || '—'}</td>
-        <td><span class="fam-channel-chip">${f.channelName || '—'}</span></td>
-        <td style="color:var(--txt-secondary)">${famRelativeDate(f.lastSeenAt)}</td>
-        <td>${statusLabel}</td>
+        <td style="font-weight:600;font-size:13px;color:var(--txt-secondary)">${label}</td>
+        <td style="font-weight:700;color:${color}">${count}</td>
+        <td style="width:60%">
+          <div style="height:8px;border-radius:4px;background:var(--bg-card);overflow:hidden">
+            <div style="height:100%;width:${pct}%;background:${color};border-radius:4px;transition:width .4s"></div>
+          </div>
+        </td>
       </tr>`;
-  }).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--txt-muted);padding:32px">Nenhuma família com acesso registrado</td></tr>';
+  }).join('');
 }
 
-// ── Render: tabela "Por Turma" ────────────────────────────
+// ── Render: tabela "Por Canal" ────────────────────────────
 function renderFamChannels(channelStats) {
   const tbody = document.getElementById('famChannelsBody');
   if (!tbody) return;
@@ -2657,24 +2632,22 @@ function renderFamChannels(channelStats) {
     !query || c.name.toLowerCase().includes(query)
   );
   tbody.innerHTML = filtered.map((c, i) => {
-    const rateColor = r => r >= 70 ? 'var(--green-text)' : r >= 40 ? 'var(--amber)' : 'var(--red-text)';
+    const rateColor = r => r >= 70 ? 'var(--green-text)' : r >= 30 ? 'var(--amber)' : 'var(--txt-muted)';
     return `
       <tr>
         <td style="color:var(--txt-muted)">${i + 1}</td>
         <td style="font-weight:600;font-size:13px">${c.name}</td>
         <td style="font-weight:700">${c.total}</td>
-        <td>${c.joined}</td>
-        <td><span style="font-weight:700;color:${rateColor(c.joinedRate)}">${c.joinedRate}%</span></td>
-        <td>${c.opened}</td>
-        <td><span style="font-weight:700;color:${rateColor(c.openedRate)}">${c.openedRate}%</span></td>
-        <td>
-          <span style="font-weight:700;color:${c.neverOpened > 0 ? 'var(--red-text)' : 'var(--txt-muted)'}">
-            ${c.neverOpened}
-          </span>
+        <td style="color:var(--green-text);font-weight:600">${c.inAttendance}</td>
+        <td style="color:var(--amber);font-weight:600">${c.pending}</td>
+        <td style="color:var(--purple-mid);font-weight:600">${c.resolved}</td>
+        <td>${c.rated}</td>
+        <td><span style="font-weight:700;color:${rateColor(c.ratingRate)}">${c.ratingRate}%</span></td>
+        <td style="color:${c.exStudents > 0 ? 'var(--amber)' : 'var(--txt-muted)'}">
+          ${c.exStudents > 0 ? `⚠ ${c.exStudents}` : '—'}
         </td>
-        <td>${c.activeWeek}</td>
       </tr>`;
-  }).join('') || '<tr><td colspan="9" style="text-align:center;color:var(--txt-muted);padding:32px">Nenhuma turma encontrada</td></tr>';
+  }).join('') || '<tr><td colspan="9" style="text-align:center;color:var(--txt-muted);padding:32px">Nenhum canal encontrado</td></tr>';
 }
 
 // ── Render principal das métricas ─────────────────────────
@@ -2688,38 +2661,39 @@ function renderFamMetrics(data) {
   }
 
   const s = data.summary;
+  const total = s.total || 1; // evitar divisão por zero
 
   // KPIs
   document.getElementById('fam-total').textContent         = s.total.toLocaleString('pt-BR');
-  document.getElementById('fam-total-canais').textContent  = `${(data.channelStats||[]).length} canais`;
-  document.getElementById('fam-joined').textContent        = s.joined.toLocaleString('pt-BR');
-  document.getElementById('fam-joined-rate').textContent   = `${s.joinedRate}%`;
-  document.getElementById('fam-joined-bar').style.width    = `${s.joinedRate}%`;
-  document.getElementById('fam-never-opened').textContent  = s.neverOpened.toLocaleString('pt-BR');
-  document.getElementById('fam-never-rate').textContent    = `${100 - s.openedRate}%`;
-  document.getElementById('fam-never-bar').style.width     = `${100 - s.openedRate}%`;
-  document.getElementById('fam-active-week').textContent   = s.activeWeek.toLocaleString('pt-BR');
-  document.getElementById('fam-active-rate').textContent   = `${s.activeWeekRate}%`;
-  document.getElementById('fam-active-bar').style.width    = `${s.activeWeekRate}%`;
+  document.getElementById('fam-total-canais').textContent  = `${s.totalChannels || (data.channelStats||[]).length} canais`;
+  document.getElementById('fam-joined').textContent        = (s.inAttendance||0).toLocaleString('pt-BR');
+  document.getElementById('fam-joined-rate').textContent   = `${Math.round(((s.inAttendance||0)/total)*100)}%`;
+  document.getElementById('fam-joined-bar').style.width    = `${Math.round(((s.inAttendance||0)/total)*100)}%`;
+  document.getElementById('fam-never-opened').textContent  = (s.pending||0).toLocaleString('pt-BR');
+  document.getElementById('fam-never-rate').textContent    = `${Math.round(((s.pending||0)/total)*100)}%`;
+  document.getElementById('fam-never-bar').style.width     = `${Math.round(((s.pending||0)/total)*100)}%`;
+  document.getElementById('fam-active-week').textContent   = (s.rated||0).toLocaleString('pt-BR');
+  document.getElementById('fam-active-rate').textContent   = `${s.ratingRate||0}%`;
+  document.getElementById('fam-active-bar').style.width    = `${s.ratingRate||0}%`;
 
-  // Donut
+  // Donut (Em Atendimento | Pendentes | Com Avaliação)
   const pctEl = document.getElementById('famDonutPct');
-  if (pctEl) pctEl.textContent = `${s.joinedRate}%`;
+  if (pctEl) pctEl.textContent = `${Math.round(((s.inAttendance||0)/total)*100)}%`;
   if (famDonutChart) {
-    famDonutChart.data.datasets[0].data = [s.joined, s.notJoined, s.activeWeek];
+    famDonutChart.data.datasets[0].data = [s.inAttendance||0, s.pending||0, s.rated||0];
     famDonutChart.update();
   }
-  document.getElementById('fam-legend-joined').textContent    = s.joined;
-  document.getElementById('fam-legend-notjoined').textContent = s.notJoined;
-  document.getElementById('fam-legend-active').textContent    = s.activeWeek;
+  document.getElementById('fam-legend-joined').textContent    = s.inAttendance||0;
+  document.getElementById('fam-legend-notjoined').textContent = s.pending||0;
+  document.getElementById('fam-legend-active').textContent    = s.rated||0;
 
   // Barras de canais
   renderFamChannelBars(data.channelStats || []);
 
   // Tabelas
-  renderFamNeverOpened(data.neverOpenedList || []);
-  renderFamRanking(data.engagementRanking || []);
   renderFamChannels(data.channelStats || []);
+  renderFamRanking(data.activityByHour || Array(24).fill(0));
+  renderFamNeverOpened(data.channelStats || []);
 }
 
 // ── Busca da API ──────────────────────────────────────────
@@ -2746,14 +2720,14 @@ async function fetchFamilyData() {
 // ── Exportar CSV ─────────────────────────────────────────
 function exportFamCSV() {
   if (!famData) return;
-  const rows = [['Responsável','Aluno','Canal','Aderiu','Nunca Abriu','Convidado em']];
-  (famData.neverOpenedList || []).forEach(f => {
-    rows.push([f.name||'', f.studentName||'', f.channelName||'', f.hasJoined?'Sim':'Não', 'Sim', famFmtDate(f.invitedAt)]);
+  const rows = [['Canal/Turma','Total','Em Atendimento','Pendentes','Resolvidas','Avaliadas','% Avaliação','Ex-Alunos','% Ex-Alunos']];
+  (famData.channelStats || []).forEach(c => {
+    rows.push([c.name, c.total, c.inAttendance, c.pending, c.resolved, c.rated, c.ratingRate+'%', c.exStudents, c.exStudentRate+'%']);
   });
   const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
   const a = document.createElement('a');
   a.href = 'data:text/csv;charset=utf-8,\uFEFF' + encodeURIComponent(csv);
-  a.download = `familias-nunca-abriram-${new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')}.csv`;
+  a.download = `engajamento-canais-${new Date().toLocaleDateString('pt-BR').replace(/\//g,'-')}.csv`;
   a.click();
 }
 

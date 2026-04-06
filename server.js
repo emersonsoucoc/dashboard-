@@ -311,105 +311,65 @@ async function refreshFamilyData() {
 // =============================================
 
 function processFamilyMetrics() {
-  const now = Date.now();
-  const WEEK_MS  = 7  * 24 * 60 * 60 * 1000;
-  const MONTH_MS = 30 * 24 * 60 * 60 * 1000;
+  const tickets = dataCache.tickets || [];
 
-  let allMembers = [];
-  const channelStats = [];
-
-  Object.entries(familyCache.channels).forEach(([channelId, members]) => {
-    const channelName = CHANNEL_NAMES[channelId] || `Canal ${channelId}`;
-    let joined = 0, neverOpened = 0, activeWeek = 0, activeMonth = 0;
-
-    members.forEach(m => {
-      // Considera que aderiu se: tem joinedAt OU tem lastSeenAt OU status é 'active'
-      const hasJoined   = !!(m.joinedAt || m.lastSeenAt || m.status === 'active');
-      const lastSeen    = m.lastSeenAt ? new Date(m.lastSeenAt) : null;
-      const lastSeenMs  = lastSeen ? now - lastSeen.getTime() : Infinity;
-
-      if (hasJoined)    joined++;
-      if (!m.lastSeenAt) neverOpened++;
-      if (lastSeenMs < WEEK_MS)  activeWeek++;
-      if (lastSeenMs < MONTH_MS) activeMonth++;
-
-      allMembers.push({ ...m, hasJoined, lastSeenDate: lastSeen });
-    });
-
-    channelStats.push({
-      id: channelId,
-      name: channelName,
-      total: members.length,
-      joined,
-      notJoined:   members.length - joined,
-      opened:      members.length - neverOpened,
-      neverOpened,
-      activeWeek,
-      activeMonth,
-      joinedRate:  members.length > 0 ? Math.round((joined / members.length) * 100) : 0,
-      openedRate:  members.length > 0 ? Math.round(((members.length - neverOpened) / members.length) * 100) : 0
-    });
+  // Agrupa por canal
+  const byChannel = {};
+  tickets.forEach(t => {
+    const chId   = String(t._channelId);
+    const chName = t._channelName || `Canal ${chId}`;
+    if (!byChannel[chId]) byChannel[chId] = { id: chId, name: chName, tickets: [] };
+    byChannel[chId].tickets.push(t);
   });
 
-  const total            = allMembers.length;
-  const totalJoined      = allMembers.filter(m => m.hasJoined).length;
-  const totalNeverOpened = allMembers.filter(m => !m.lastSeenAt).length;
-  const totalActiveWeek  = allMembers.filter(m => m.lastSeenDate && (now - m.lastSeenDate) < WEEK_MS).length;
-  const totalActiveMonth = allMembers.filter(m => m.lastSeenDate && (now - m.lastSeenDate) < MONTH_MS).length;
+  // Métricas por canal
+  const channelStats = Object.values(byChannel).map(ch => {
+    const total        = ch.tickets.length;
+    const attrs        = ch.tickets.map(t => t.attributes || {});
+    const inAttendance = attrs.filter(a => a.status === 'in_attendance').length;
+    const pending      = attrs.filter(a => a.status === 'pending').length;
+    const resolved     = attrs.filter(a => ['resolved','closed','finished'].includes(a.status)).length;
+    const rated        = attrs.filter(a => a.hasRating).length;
+    const exStudents   = attrs.filter(a => a.exStudent).length;
+    const other        = Math.max(0, total - inAttendance - pending - resolved);
+    return {
+      id: ch.id, name: ch.name,
+      total, inAttendance, pending, resolved, rated, exStudents, other,
+      ratingRate:    total > 0 ? Math.round((rated      / total) * 100) : 0,
+      exStudentRate: total > 0 ? Math.round((exStudents / total) * 100) : 0
+    };
+  }).sort((a, b) => b.total - a.total);
 
-  // Top canais com menor engajamento (prioridade de ação)
-  const lowEngagement = [...channelStats]
-    .filter(c => c.total > 0)
-    .sort((a, b) => a.openedRate - b.openedRate)
-    .slice(0, 10);
+  // Totais gerais
+  const total        = tickets.length;
+  const allAttrs     = tickets.map(t => t.attributes || {});
+  const inAttendance = allAttrs.filter(a => a.status === 'in_attendance').length;
+  const pending      = allAttrs.filter(a => a.status === 'pending').length;
+  const resolved     = allAttrs.filter(a => ['resolved','closed','finished'].includes(a.status)).length;
+  const rated        = allAttrs.filter(a => a.hasRating).length;
+  const exStudents   = allAttrs.filter(a => a.exStudent).length;
+  const other        = Math.max(0, total - inAttendance - pending - resolved);
 
-  // Famílias que nunca abriram (para ação da coordenação)
-  const neverOpenedList = allMembers
-    .filter(m => !m.lastSeenAt)
-    .sort((a, b) => (b.invitedAt || '').localeCompare(a.invitedAt || ''))
-    .slice(0, 100)
-    .map(m => ({
-      name:        m.name,
-      studentName: m.studentName,
-      channelName: m.channelName,
-      invitedAt:   m.invitedAt,
-      hasJoined:   m.hasJoined
-    }));
-
-  // Famílias mais engajadas (ranking)
-  const engagementRanking = allMembers
-    .filter(m => m.lastSeenDate)
-    .sort((a, b) => (b.lastSeenDate?.getTime() || 0) - (a.lastSeenDate?.getTime() || 0))
-    .slice(0, 50)
-    .map(m => ({
-      name:        m.name,
-      studentName: m.studentName,
-      channelName: m.channelName,
-      lastSeenAt:  m.lastSeenAt,
-      hasJoined:   m.hasJoined
-    }));
+  // Atividade por hora (de createdAt)
+  const activityByHour = Array(24).fill(0);
+  tickets.forEach(t => {
+    const d = (t.attributes || {}).createdAt;
+    if (d) activityByHour[new Date(d).getHours()]++;
+  });
 
   return {
     summary: {
-      total,
-      joined:          totalJoined,
-      notJoined:       total - totalJoined,
-      joinedRate:      total > 0 ? Math.round((totalJoined / total) * 100) : 0,
-      opened:          total - totalNeverOpened,
-      neverOpened:     totalNeverOpened,
-      openedRate:      total > 0 ? Math.round(((total - totalNeverOpened) / total) * 100) : 0,
-      activeWeek:      totalActiveWeek,
-      activeWeekRate:  total > 0 ? Math.round((totalActiveWeek / total) * 100) : 0,
-      activeMonth:     totalActiveMonth,
-      activeMonthRate: total > 0 ? Math.round((totalActiveMonth / total) * 100) : 0
+      total, inAttendance, pending, resolved, other, rated, exStudents,
+      ratingRate:    total > 0 ? Math.round((rated      / total) * 100) : 0,
+      exStudentRate: total > 0 ? Math.round((exStudents / total) * 100) : 0,
+      totalChannels: channelStats.length
     },
-    channelStats:      channelStats.sort((a, b) => b.total - a.total),
-    lowEngagement,
-    neverOpenedList,
-    engagementRanking,
-    lastUpdated:   familyCache.lastUpdated,
-    isLoading:     familyCache.isLoading,
-    error:         familyCache.error
+    channelStats,
+    activityByHour,
+    lastUpdated: new Date().toISOString(),
+    source: 'tickets',
+    isLoading: false,
+    error: null
   };
 }
 
@@ -888,11 +848,11 @@ app.post('/api/refresh', async (req, res) => {
   }
 });
 
-// ── Famílias ──
-app.get('/api/familias', async (req, res) => {
-  if (!familyCache.lastUpdated && !familyCache.error) {
+// ── Famílias (derivado dos tickets em cache) ──
+app.get('/api/familias', (req, res) => {
+  if (!dataCache.tickets || dataCache.tickets.length === 0) {
     return res.status(503).json({
-      error: 'Dados de famílias ainda sendo carregados, aguarde...',
+      error: 'Aguardando carregamento dos tickets...',
       isLoading: true
     });
   }
@@ -901,8 +861,8 @@ app.get('/api/familias', async (req, res) => {
 
 app.post('/api/familias/refresh', async (req, res) => {
   try {
-    await refreshFamilyData();
-    res.json({ success: true, message: 'Dados de famílias atualizados!' });
+    await refreshData();
+    res.json({ success: true, message: 'Dados atualizados a partir dos tickets!' });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
