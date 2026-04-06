@@ -908,6 +908,24 @@ app.post('/api/familias/refresh', async (req, res) => {
   }
 });
 
+// Rota de debug: mostra campos de um ticket real (sem valores sensíveis)
+app.get('/api/debug-ticket', (req, res) => {
+  const ticket = dataCache.tickets[0];
+  if (!ticket) return res.json({ error: 'Sem tickets em cache ainda' });
+  const attrs = ticket.attributes || {};
+  res.json({
+    topKeys: Object.keys(ticket),
+    attrKeys: Object.keys(attrs),
+    attrSample: Object.fromEntries(
+      Object.entries(attrs)
+        .filter(([k]) => !['body','content','message','text'].includes(k))
+        .slice(0, 30)
+    ),
+    relationships: ticket.relationships ? Object.keys(ticket.relationships) : null,
+    channelName: ticket._channelName,
+  });
+});
+
 // Rota de debug: testa o endpoint /members e mostra estrutura sem dados sensíveis
 app.get('/api/debug-members/:channelId', async (req, res) => {
   const { channelId } = req.params;
@@ -929,15 +947,22 @@ app.get('/api/debug-members/:channelId', async (req, res) => {
     const first = items[0] || null;
     const attrs = first?.attributes || first || {};
 
+    const rawType = typeof raw;
+    const rawPreview = rawType === 'string'
+      ? raw.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 150)
+      : null;
+
     res.json({
       httpStatus:      response.status,
+      rawType,
+      rawPreview,            // Mostra texto da página (sem HTML) se for string
       isArrayAtRoot:   isArray,
       isNumericObject: isNumericObj,
       rootKeysSample:  Object.keys(raw).slice(0, 5),
       totalItemsPage:  items.length,
       firstItemKeys:   first ? Object.keys(first) : null,
       firstAttrKeys:   attrs ? Object.keys(attrs).filter(k => !['name','email','phone','cpf','document','token'].includes(k)) : null,
-      firstAttrSample: attrs
+      firstAttrSample: attrs && rawType === 'object'
         ? Object.fromEntries(
             Object.entries(attrs)
               .filter(([k]) => !['name','email','phone','cpf','document','token','password'].includes(k))
@@ -945,7 +970,8 @@ app.get('/api/debug-members/:channelId', async (req, res) => {
           )
         : null,
       firstType: first?.type || null,
-      meta: raw.meta || null,
+      meta: rawType === 'object' ? (raw.meta || null) : null,
+      authMode: process.env.AGENDAEDU_SCHOOL_TOKEN ? 'school-token' : (process.env.SESSION_COOKIE ? 'session-cookie' : 'none'),
     });
   } catch (error) {
     res.status(500).json({
