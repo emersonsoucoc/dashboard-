@@ -211,23 +211,34 @@ async function fetchChannelMembers(channelId) {
       break;
     }
 
-    const data = response.data;
-    const members = data.data || [];
+    const raw = response.data;
+    // A API pode retornar: array puro, objeto {data:[]}, ou objeto com chaves numéricas {"0":{...},"1":{...}}
+    let members;
+    if (Array.isArray(raw)) {
+      members = raw;
+    } else if (raw.data && Array.isArray(raw.data)) {
+      members = raw.data;
+    } else if (raw && typeof raw === 'object' && Object.keys(raw).some(k => /^\d+$/.test(k))) {
+      members = Object.values(raw).filter(v => typeof v === 'object' && v !== null);
+    } else {
+      members = [];
+    }
+
     const channelName = CHANNEL_NAMES[String(channelId)] || `Canal ${channelId}`;
 
     members.forEach(member => {
-      const attrs = member.attributes || {};
-      // Normaliza atributos — a API pode usar snake_case ou camelCase
-      const joinedAt   = attrs.joinedAt   || attrs.joined_at   || attrs.acceptedAt || attrs.accepted_at || null;
-      const lastSeenAt = attrs.lastSeenAt || attrs.last_seen_at || attrs.lastReadAt || attrs.last_read_at || null;
-      const invitedAt  = attrs.invitedAt  || attrs.invited_at  || attrs.createdAt  || attrs.created_at  || null;
-      const name       = attrs.name || attrs.fullName || attrs.full_name || attrs.guardianName || `Responsável #${member.id}`;
-      const studentName = attrs.studentName || attrs.student_name || null;
-      const status     = attrs.status || 'unknown';
-      const hasApp     = attrs.hasApp ?? attrs.has_app ?? null;
+      // A API pode retornar atributos em attrs aninhados ou diretamente no objeto
+      const attrs = member.attributes || member || {};
+      const joinedAt    = attrs.joinedAt    || attrs.joined_at    || attrs.acceptedAt  || attrs.accepted_at  || null;
+      const lastSeenAt  = attrs.lastSeenAt  || attrs.last_seen_at || attrs.lastReadAt  || attrs.last_read_at || null;
+      const invitedAt   = attrs.invitedAt   || attrs.invited_at   || attrs.createdAt   || attrs.created_at  || null;
+      const name        = attrs.name || attrs.fullName || attrs.full_name || attrs.guardianName || attrs.guardian_name || `Responsável #${member.id || '?'}`;
+      const studentName = attrs.studentName || attrs.student_name || attrs.childName || attrs.child_name || null;
+      const status      = attrs.status || 'unknown';
+      const hasApp      = attrs.hasApp ?? attrs.has_app ?? (joinedAt ? true : null);
 
       allMembers.push({
-        id: member.id,
+        id: member.id || null,
         channelId: String(channelId),
         channelName,
         name,
@@ -240,7 +251,7 @@ async function fetchChannelMembers(channelId) {
       });
     });
 
-    const totalPages = data.meta?.totalPages || data.meta?.total_pages || 1;
+    const totalPages = (raw.meta?.totalPages || raw.meta?.total_pages) || 1;
     if (page >= totalPages || members.length < perPage) break;
     page++;
   }
@@ -908,26 +919,33 @@ app.get('/api/debug-members/:channelId', async (req, res) => {
     });
     const raw = response.data;
     const isArray = Array.isArray(raw);
-    const items  = isArray ? raw : (raw.data || []);
-    const first  = items[0] || null;
+    const isNumericObj = !isArray && typeof raw === 'object' && Object.keys(raw).some(k => /^\d+$/.test(k));
+    let items;
+    if (isArray) items = raw;
+    else if (raw.data && Array.isArray(raw.data)) items = raw.data;
+    else if (isNumericObj) items = Object.values(raw).filter(v => typeof v === 'object' && v !== null);
+    else items = [];
 
-    // Retorna só estrutura — sem valores sensíveis
+    const first = items[0] || null;
+    const attrs = first?.attributes || first || {};
+
     res.json({
       httpStatus:      response.status,
       isArrayAtRoot:   isArray,
-      rootKeys:        isArray ? '(array)' : Object.keys(raw),
-      meta:            isArray ? null : raw.meta,
+      isNumericObject: isNumericObj,
+      rootKeysSample:  Object.keys(raw).slice(0, 5),
       totalItemsPage:  items.length,
       firstItemKeys:   first ? Object.keys(first) : null,
-      firstAttrKeys:   first?.attributes ? Object.keys(first.attributes) : null,
-      firstAttrSample: first?.attributes
+      firstAttrKeys:   attrs ? Object.keys(attrs).filter(k => !['name','email','phone','cpf','document','token'].includes(k)) : null,
+      firstAttrSample: attrs
         ? Object.fromEntries(
-            Object.entries(first.attributes)
-              .filter(([k]) => !['name','email','phone','cpf','document'].includes(k))
-              .slice(0, 15)
+            Object.entries(attrs)
+              .filter(([k]) => !['name','email','phone','cpf','document','token','password'].includes(k))
+              .slice(0, 20)
           )
         : null,
       firstType: first?.type || null,
+      meta: raw.meta || null,
     });
   } catch (error) {
     res.status(500).json({
