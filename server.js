@@ -57,33 +57,52 @@ const CHANNEL_NAMES = {
 };
 
 // =============================================
-// AUTENTICAÇÃO VIA COOKIE DE SESSÃO
+// AUTENTICAÇÃO — TOKEN OFICIAL (prioritário) ou COOKIE (fallback)
 // =============================================
 
-// Lê o cookie de sessão da variável de ambiente SESSION_COOKIE
-// Formato: agendakids_session=VALOR
-// Para renovar: extraia o novo valor do DevTools e atualize SESSION_COOKIE no Railway
-function getSessionCookie() {
-  const cookieValue = process.env.SESSION_COOKIE;
-  if (!cookieValue) return null;
-  return `agendakids_session=${cookieValue}`;
-}
-
+// Prioridade 1: AGENDAEDU_SCHOOL_TOKEN — token oficial da API, não expira
+// Prioridade 2: SESSION_COOKIE — cookie de sessão manual (expira, use só se não tiver token)
 function getRequestHeaders() {
-  const sessionCookie = getSessionCookie();
-  if (!sessionCookie) throw new Error('SESSION_COOKIE não configurado. Adicione a variável de ambiente no Railway.');
-  return {
-    'Accept': 'application/json, text/plain, */*',
-    'Cookie': sessionCookie,
-    'X-Requested-With': 'XMLHttpRequest',
-    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    'Referer': `${BASE_URL}/schools/messages`
-  };
+  const schoolToken  = process.env.AGENDAEDU_SCHOOL_TOKEN;
+  const sessionCookie = process.env.SESSION_COOKIE;
+
+  if (schoolToken) {
+    // Autenticação via token oficial — estável e sem expiração
+    return {
+      'Accept':          'application/json, text/plain, */*',
+      'Authorization':   `Token token=${schoolToken}`,
+      'X-Requested-With': 'XMLHttpRequest',
+      'User-Agent':      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Referer':         `${BASE_URL}/schools/messages`
+    };
+  }
+
+  if (sessionCookie) {
+    // Fallback: cookie de sessão manual (renova periodicamente no Railway)
+    return {
+      'Accept':           'application/json, text/plain, */*',
+      'Cookie':           `agendakids_session=${sessionCookie}`,
+      'X-Requested-With': 'XMLHttpRequest',
+      'User-Agent':       'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Referer':          `${BASE_URL}/schools/messages`
+    };
+  }
+
+  throw new Error('Nenhuma autenticação configurada. Adicione AGENDAEDU_SCHOOL_TOKEN no Railway.');
 }
 
 // =============================================
 // CACHE DE DADOS
 // =============================================
+
+// Cache de famílias/membros por canal
+let familyCache = {
+  channels: {},      // channelId → array de membros
+  lastUpdated: null,
+  isLoading: false,
+  error: null
+};
+
 let dataCache = {
   tickets: [],
   lastUpdated: null,
@@ -161,6 +180,226 @@ async function fetchTicketsFromChannel(channelId) {
   }
 
   return allTickets;
+}
+
+// =============================================
+// BUSCA DE MEMBROS/FAMÍLIAS POR CANAL
+// =============================================
+
+async function fetchChannelMembers(channelId) {
+  const allMembers = [];
+  let page = 1;
+  const perPage = 100;
+
+  while (true) {
+    const url = `${BASE_URL}/schools/messages/channels/${channelId}/members?page[size]=${perPage}&page[number]=${page}`;
+
+    let response;
+    try {
+      response = await axios.get(url, {
+        headers: getRequestHeaders(),
+        timeout: 15000
+      });
+    } catch (error) {
+      const status = error.response?.status;
+      if (status === 401 || status === 403 || status === 302) {
+        console.error(`🔑 Cookie expirado ao buscar membros do canal ${channelId}`);
+        familyCache.error = 'Cookie de sessão expirado. Atualize SESSION_COOKIE no Railway.';
+      } else {
+        console.error(`❌ Erro membros canal ${channelId} pág.${page}: ${status} ${error.message}`);
+      }
+      break;
+    }
+
+    const data = response.data;
+    const members = data.data || [];
+    const channelName = CHANNEL_NAMES[String(channelId)] || `Canal ${channelId}`;
+
+    members.forEach(member => {
+      const attrs = member.attributes || {};
+      // Normaliza atributos — a API pode usar snake_case ou camelCase
+      const joinedAt   = attrs.joinedAt   || attrs.joined_at   || attrs.acceptedAt || attrs.accepted_at || null;
+      const lastSeenAt = attrs.lastSeenAt || attrs.last_seen_at || attrs.lastReadAt || attrs.last_read_at || null;
+      const invitedAt  = attrs.invitedAt  || attrs.invited_at  || attrs.createdAt  || attrs.created_at  || null;
+      const name       = attrs.name || attrs.fullName || attrs.full_name || attrs.guardianName || `Responsável #${member.id}`;
+      const studentName = attrs.studentName || attrs.student_name || null;
+      const status     = attrs.status || 'unknown';
+      const hasApp     = attrs.hasApp ?? attrs.has_app ?? null;
+
+      allMembers.push({
+        id: member.id,
+        channelId: String(channelId),
+        channelName,
+        name,
+        studentName,
+        status,
+        joinedAt,
+        lastSeenAt,
+        invitedAt,
+        hasApp
+      });
+    });
+
+    const totalPages = data.meta?.totalPages || data.meta?.total_pages || 1;
+    if (page >= totalPages || members.length < perPage) break;
+    page++;
+  }
+
+  return allMembers;
+}
+
+// =============================================
+// REFRESH DE FAMÍLIAS
+// =============================================
+
+async function refreshFamilyData() {
+  if (familyCache.isLoading) {
+    console.log('⏳ Atualização de famílias já em andamento...');
+    return;
+  }
+
+  const channelIds = (process.env.CHANNEL_IDS || '')
+    .split(',').map(id => id.trim()).filter(Boolean);
+
+  if (channelIds.length === 0) return;
+  if (!process.env.AGENDAEDU_SCHOOL_TOKEN && !process.env.SESSION_COOKIE) return;
+
+  familyCache.isLoading = true;
+  familyCache.error = null;
+
+  try {
+    console.log(`👨‍👩‍👧 [${new Date().toLocaleTimeString('pt-BR')}] Buscando membros de ${channelIds.length} canais...`);
+
+    const chunkSize = 3;
+    const channelsData = {};
+
+    for (let i = 0; i < channelIds.length; i += chunkSize) {
+      const chunk = channelIds.slice(i, i + chunkSize);
+      const results = await Promise.all(chunk.map(id => fetchChannelMembers(id)));
+      chunk.forEach((channelId, idx) => {
+        channelsData[channelId] = results[idx];
+      });
+    }
+
+    familyCache.channels = channelsData;
+    familyCache.lastUpdated = new Date().toISOString();
+
+    const total = Object.values(channelsData).reduce((s, m) => s + m.length, 0);
+    console.log(`✅ [${new Date().toLocaleTimeString('pt-BR')}] ${total} membros/famílias carregados`);
+
+  } catch (error) {
+    familyCache.error = error.message;
+    console.error(`❌ Erro famílias: ${error.message}`);
+  } finally {
+    familyCache.isLoading = false;
+  }
+}
+
+// =============================================
+// PROCESSAMENTO DE MÉTRICAS DE FAMÍLIAS
+// =============================================
+
+function processFamilyMetrics() {
+  const now = Date.now();
+  const WEEK_MS  = 7  * 24 * 60 * 60 * 1000;
+  const MONTH_MS = 30 * 24 * 60 * 60 * 1000;
+
+  let allMembers = [];
+  const channelStats = [];
+
+  Object.entries(familyCache.channels).forEach(([channelId, members]) => {
+    const channelName = CHANNEL_NAMES[channelId] || `Canal ${channelId}`;
+    let joined = 0, neverOpened = 0, activeWeek = 0, activeMonth = 0;
+
+    members.forEach(m => {
+      // Considera que aderiu se: tem joinedAt OU tem lastSeenAt OU status é 'active'
+      const hasJoined   = !!(m.joinedAt || m.lastSeenAt || m.status === 'active');
+      const lastSeen    = m.lastSeenAt ? new Date(m.lastSeenAt) : null;
+      const lastSeenMs  = lastSeen ? now - lastSeen.getTime() : Infinity;
+
+      if (hasJoined)    joined++;
+      if (!m.lastSeenAt) neverOpened++;
+      if (lastSeenMs < WEEK_MS)  activeWeek++;
+      if (lastSeenMs < MONTH_MS) activeMonth++;
+
+      allMembers.push({ ...m, hasJoined, lastSeenDate: lastSeen });
+    });
+
+    channelStats.push({
+      id: channelId,
+      name: channelName,
+      total: members.length,
+      joined,
+      notJoined:   members.length - joined,
+      opened:      members.length - neverOpened,
+      neverOpened,
+      activeWeek,
+      activeMonth,
+      joinedRate:  members.length > 0 ? Math.round((joined / members.length) * 100) : 0,
+      openedRate:  members.length > 0 ? Math.round(((members.length - neverOpened) / members.length) * 100) : 0
+    });
+  });
+
+  const total            = allMembers.length;
+  const totalJoined      = allMembers.filter(m => m.hasJoined).length;
+  const totalNeverOpened = allMembers.filter(m => !m.lastSeenAt).length;
+  const totalActiveWeek  = allMembers.filter(m => m.lastSeenDate && (now - m.lastSeenDate) < WEEK_MS).length;
+  const totalActiveMonth = allMembers.filter(m => m.lastSeenDate && (now - m.lastSeenDate) < MONTH_MS).length;
+
+  // Top canais com menor engajamento (prioridade de ação)
+  const lowEngagement = [...channelStats]
+    .filter(c => c.total > 0)
+    .sort((a, b) => a.openedRate - b.openedRate)
+    .slice(0, 10);
+
+  // Famílias que nunca abriram (para ação da coordenação)
+  const neverOpenedList = allMembers
+    .filter(m => !m.lastSeenAt)
+    .sort((a, b) => (b.invitedAt || '').localeCompare(a.invitedAt || ''))
+    .slice(0, 100)
+    .map(m => ({
+      name:        m.name,
+      studentName: m.studentName,
+      channelName: m.channelName,
+      invitedAt:   m.invitedAt,
+      hasJoined:   m.hasJoined
+    }));
+
+  // Famílias mais engajadas (ranking)
+  const engagementRanking = allMembers
+    .filter(m => m.lastSeenDate)
+    .sort((a, b) => (b.lastSeenDate?.getTime() || 0) - (a.lastSeenDate?.getTime() || 0))
+    .slice(0, 50)
+    .map(m => ({
+      name:        m.name,
+      studentName: m.studentName,
+      channelName: m.channelName,
+      lastSeenAt:  m.lastSeenAt,
+      hasJoined:   m.hasJoined
+    }));
+
+  return {
+    summary: {
+      total,
+      joined:          totalJoined,
+      notJoined:       total - totalJoined,
+      joinedRate:      total > 0 ? Math.round((totalJoined / total) * 100) : 0,
+      opened:          total - totalNeverOpened,
+      neverOpened:     totalNeverOpened,
+      openedRate:      total > 0 ? Math.round(((total - totalNeverOpened) / total) * 100) : 0,
+      activeWeek:      totalActiveWeek,
+      activeWeekRate:  total > 0 ? Math.round((totalActiveWeek / total) * 100) : 0,
+      activeMonth:     totalActiveMonth,
+      activeMonthRate: total > 0 ? Math.round((totalActiveMonth / total) * 100) : 0
+    },
+    channelStats:      channelStats.sort((a, b) => b.total - a.total),
+    lowEngagement,
+    neverOpenedList,
+    engagementRanking,
+    lastUpdated:   familyCache.lastUpdated,
+    isLoading:     familyCache.isLoading,
+    error:         familyCache.error
+  };
 }
 
 // =============================================
@@ -284,9 +523,9 @@ async function refreshData() {
     return;
   }
 
-  // Verifica se o cookie de sessão está configurado
-  if (!process.env.SESSION_COOKIE) {
-    dataCache.error = 'SESSION_COOKIE não configurado. Adicione a variável no Railway.';
+  // Verifica se há autenticação configurada
+  if (!process.env.AGENDAEDU_SCHOOL_TOKEN && !process.env.SESSION_COOKIE) {
+    dataCache.error = 'Autenticação não configurada. Adicione AGENDAEDU_SCHOOL_TOKEN no Railway.';
     console.error(`❌ ${dataCache.error}`);
     return;
   }
@@ -392,6 +631,7 @@ function processMetrics() {
         const minutesExtra = Math.round(waitingMin % 60);
         longWaitTickets.push({
           id: ticket.id,
+          channelId: ticket._channelId,
           channelName: ticket._channelName || `Canal ${ticket._channelId}`,
           attendantName: ticket._attendantName || 'Não atribuído',
           minutesWaiting: Math.round(waitingMin),
@@ -411,6 +651,7 @@ function processMetrics() {
         const minutesExtra = Math.round(inactiveMin % 60);
         longWaitTickets.push({
           id: ticket.id,
+          channelId: ticket._channelId,
           channelName: ticket._channelName || `Canal ${ticket._channelId}`,
           attendantName: ticket._attendantName || 'Não atribuído',
           minutesWaiting: Math.round(inactiveMin),
@@ -611,17 +852,19 @@ app.get('/api/metrics', (req, res) => {
 });
 
 app.get('/api/status', (req, res) => {
+  const hasToken  = !!process.env.AGENDAEDU_SCHOOL_TOKEN;
+  const hasCookie = !!process.env.SESSION_COOKIE;
   res.json({
-    status: 'online',
-    configured: !!(process.env.SESSION_COOKIE && process.env.CHANNEL_IDS),
-    loggedIn: !!process.env.SESSION_COOKIE,
-    authMode: 'session-cookie',
-    channels: (process.env.CHANNEL_IDS || '').split(',').filter(Boolean).length,
+    status:      'online',
+    configured:  !!(  (hasToken || hasCookie) && process.env.CHANNEL_IDS),
+    loggedIn:    hasToken || hasCookie,
+    authMode:    hasToken ? 'school-token' : hasCookie ? 'session-cookie' : 'none',
+    channels:    (process.env.CHANNEL_IDS || '').split(',').filter(Boolean).length,
     lastUpdated: dataCache.lastUpdated,
-    isLoading: dataCache.isLoading,
+    isLoading:   dataCache.isLoading,
     ticketCount: dataCache.tickets.length,
-    error: dataCache.error,
-    channelMap: CHANNEL_NAMES
+    error:       dataCache.error,
+    channelMap:  CHANNEL_NAMES
   });
 });
 
@@ -629,6 +872,26 @@ app.post('/api/refresh', async (req, res) => {
   try {
     await refreshData();
     res.json({ success: true, message: 'Dados atualizados com sucesso!' });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ── Famílias ──
+app.get('/api/familias', async (req, res) => {
+  if (!familyCache.lastUpdated && !familyCache.error) {
+    return res.status(503).json({
+      error: 'Dados de famílias ainda sendo carregados, aguarde...',
+      isLoading: true
+    });
+  }
+  res.json(processFamilyMetrics());
+});
+
+app.post('/api/familias/refresh', async (req, res) => {
+  try {
+    await refreshFamilyData();
+    res.json({ success: true, message: 'Dados de famílias atualizados!' });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -649,24 +912,35 @@ app.listen(PORT, async () => {
 ╚══════════════════════════════════════════════╝
   `);
 
-  const missing = [];
-  if (!process.env.SESSION_COOKIE) missing.push('SESSION_COOKIE');
-  if (!process.env.CHANNEL_IDS) missing.push('CHANNEL_IDS');
+  const hasToken  = !!process.env.AGENDAEDU_SCHOOL_TOKEN;
+  const hasCookie = !!process.env.SESSION_COOKIE;
+  const hasAuth   = hasToken || hasCookie;
 
-  if (missing.length > 0) {
-    console.warn(`⚠️  ATENÇÃO: Variáveis não configuradas: ${missing.join(', ')}`);
-    if (!process.env.SESSION_COOKIE) {
-      console.warn('   → Extraia o cookie "agendakids_session" do DevTools (Application > Cookies)');
-      console.warn('   → Adicione SESSION_COOKIE=<valor> nas variáveis de ambiente do Railway');
-    }
-    return;
+  if (!hasAuth) {
+    console.warn('⚠️  ATENÇÃO: Nenhuma autenticação configurada.');
+    console.warn('   → Adicione AGENDAEDU_SCHOOL_TOKEN nas variáveis de ambiente do Railway (recomendado)');
+    console.warn('   → Ou SESSION_COOKIE como fallback (expira periodicamente)');
   }
+  if (!process.env.CHANNEL_IDS) {
+    console.warn('⚠️  ATENÇÃO: CHANNEL_IDS não configurado.');
+  }
+  if (!hasAuth || !process.env.CHANNEL_IDS) return;
 
-  console.log('🍪 Usando cookie de sessão configurado.');
+  if (hasToken) {
+    console.log('🔑 Usando AGENDAEDU_SCHOOL_TOKEN (autenticação oficial, permanente)');
+  } else {
+    console.log('🍪 Usando SESSION_COOKIE (fallback — renove periodicamente)');
+  }
   try {
     await refreshData();
     setInterval(refreshData, REFRESH_INTERVAL_MS);
     console.log(`✅ Sistema iniciado! Auto-refresh a cada ${REFRESH_INTERVAL_MS / 1000}s`);
+
+    // Busca famílias logo após (não bloqueia o boot)
+    refreshFamilyData().catch(e => console.error('❌ Erro inicial famílias:', e.message));
+    // Refresh de famílias a cada 5 minutos (dados mudam menos)
+    setInterval(refreshFamilyData, 5 * 60 * 1000);
+    console.log('👨‍👩‍👧 Monitoramento de famílias ativado (refresh a cada 5 min)');
   } catch (error) {
     console.error(`❌ Erro na inicialização: ${error.message}`);
   }
