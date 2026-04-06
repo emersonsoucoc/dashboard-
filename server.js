@@ -897,6 +897,34 @@ app.post('/api/familias/refresh', async (req, res) => {
   }
 });
 
+// Rota de debug: testa o endpoint /members de um canal específico
+app.get('/api/debug-members/:channelId', async (req, res) => {
+  const { channelId } = req.params;
+  try {
+    const url = `${BASE_URL}/schools/messages/channels/${channelId}/members?page[size]=5&page[number]=1`;
+    const response = await axios.get(url, {
+      headers: getRequestHeaders(),
+      timeout: 15000
+    });
+    res.json({
+      status: response.status,
+      url,
+      dataKeys: Object.keys(response.data || {}),
+      meta: response.data?.meta,
+      totalItems: response.data?.data?.length,
+      firstItem: response.data?.data?.[0],
+      rawSample: JSON.stringify(response.data).substring(0, 2000)
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: error.message,
+      status: error.response?.status,
+      url: `${BASE_URL}/schools/messages/channels/${channelId}/members`,
+      responseData: JSON.stringify(error.response?.data || {}).substring(0, 1000)
+    });
+  }
+});
+
 // =============================================
 // INICIALIZAÇÃO
 // =============================================
